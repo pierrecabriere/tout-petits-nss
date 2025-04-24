@@ -55,16 +55,14 @@ export default function LoginPage() {
 
           await supabaseClient.auth.exchangeCodeForSession(code);
 
-          const next = params.get('next') || '/';
           queryClient.invalidateQueries();
-          window.location.href = next;
+          router.replace(params.get('next') || '/');
         } catch (error) {
+          setIsLoading(false);
           console.error('Error exchanging code for session:', error);
           setError('root.serverError', {
             message: t('auth.authError'),
           });
-        } finally {
-          setIsLoading(false);
         }
         return;
       }
@@ -101,7 +99,7 @@ export default function LoginPage() {
               }
 
               queryClient.invalidateQueries();
-              router.push(next);
+              router.replace(next);
             }
           }
         } catch (error) {
@@ -128,15 +126,13 @@ export default function LoginPage() {
       reset();
 
       // Get the next parameter from URL
-      const params = new URLSearchParams(window.location.search);
-      const next = params.get('next') || '/';
       queryClient.invalidateQueries();
-      router.push(next);
+      const params = new URLSearchParams(window.location.search);
+      router.replace(params.get('next') || '/');
     } catch (error) {
+      setIsLoading(false);
       console.log(error);
       setError('root.serverError', { message: (error as Error).message });
-    } finally {
-      setIsLoading(false);
     }
   };
 
@@ -145,8 +141,8 @@ export default function LoginPage() {
       containerClassName="bg-muted/50"
       contentClassName="flex w-full h-full items-center justify-center"
     >
-      <Card className="max-w-md w-full">
-        <CardHeader className="flex justify-center items-center gap-4">
+      <Card className="w-full max-w-md">
+        <CardHeader className="flex items-center justify-center gap-4">
           <Image src="/images/logo.svg" alt={t('common.logo')} width={150} height={100} />
           <CardTitle className="text-center text-lg font-extrabold">
             {t('auth.signInTitle')}

@@ -23,10 +23,10 @@ export default function LayoutSidebar({
     <SidebarProvider open={sidebarOpen}>
       <MainSidebar />
 
-      <main className={cn('flex-1 flex flex-col overflow-auto', containerClassName)}>
+      <main className={cn('flex flex-1 flex-col overflow-auto', containerClassName)}>
         {/* {sidebarOpen !== false ? <SidebarTrigger className="mx-3 mt-2" /> : null} */}
         <div className={cn('flex-1 px-4 py-2', className)}>
-          <div className={cn('flex-1 container max-w-screen-lg mx-auto', contentClassName)}>
+          <div className={cn('container mx-auto max-w-screen-lg flex-1', contentClassName)}>
             {children}
           </div>
         </div>
