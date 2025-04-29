@@ -10,12 +10,16 @@
     "description": "Lorem ipsum dolor, sit amet consectetur adipisicing elit. Dignissimos atque nisi necessitatibus neque voluptates libero aperiam nam repellat quam, ab perferendis cum animi repellendus ratione eius dolores et iure rerum!"
   },
   "common": {
-    "logo": "Logo"
+    "logo": "Logo",
+    "page": "Page"
   },
   "navigation": {
     "home": "Accueil",
     "mainMenu": "Menu principal",
-    "todos": "Tâches"
+    "todos": "Tâches",
+    "explorer": "Explorateur",
+    "configurator": "Configurateur",
+    "library": "Bibliothèque"
   },
   "settings": {
     "title": "Paramètres",
@@ -35,12 +39,12 @@
     "signInTitle": "Connectez-vous à votre compte",
     "emailLabel": "Adresse e-mail",
     "emailPlaceholder": "Adresse e-mail",
-    "emailRequired": "L'email est requis",
+    "emailRequired": "L'e-mail est requis",
     "emailInvalid": "Adresse e-mail invalide",
     "passwordLabel": "Mot de passe",
     "passwordPlaceholder": "Mot de passe",
     "passwordRequired": "Le mot de passe est requis",
-    "passwordMinLength": "Le mot de passe doit contenir au moins 6 caractères",
+    "passwordMinLength": "Le mot de passe doit comporter au moins 6 caractères",
     "signingIn": "Connexion en cours...",
     "forgotPassword": "Mot de passe oublié ?",
     "authError": "Échec de l'authentification. Veuillez réessayer.",
@@ -48,19 +52,68 @@
     "signInLoading": "Connexion en cours...",
     "resetPassword": {
       "title": "Réinitialiser votre mot de passe",
-      "emailPlaceholder": "Saisissez votre adresse e-mail",
-      "sendButton": "Envoyer le lien",
-      "sendingButton": "Envoi du lien...",
+      "emailPlaceholder": "Entrez votre adresse e-mail",
+      "sendButton": "Envoyer le lien de réinitialisation",
+      "sendingButton": "Envoi du lien de réinitialisation...",
       "backToLogin": "Retour à la connexion",
       "returnToLogin": "Retourner à la connexion",
-      "successMessage": "Si un compte existe avec cet e-mail, nous avons envoyé les instructions de réinitialisation du mot de passe à votre adresse e-mail.",
+      "successMessage": "Si un compte existe avec cet e-mail, nous avons envoyé des instructions de réinitialisation de mot de passe à votre adresse e-mail.",
       "sendError": "Échec de l'envoi de l'e-mail de réinitialisation"
     }
   },
   "todos": {
     "title": "Tâches",
     "newTodoPlaceholder": "Ajouter une nouvelle tâche...",
-    "noTodos": "Aucune tâche pour le moment",
+    "noTodos": "Pas encore de tâches",
     "showAll": "Afficher tout"
+  },
+  "metrics": {
+    "explorer": {
+      "title": "Explorateur de Métriques",
+      "description": "Parcourir et analyser les métriques disponibles",
+      "searchPlaceholder": "Rechercher des métriques...",
+      "noMetrics": "Aucune métrique trouvée",
+      "source": "Source",
+      "noSource": "Pas de source",
+      "noDescription": "Pas de description",
+      "dataPoints": "points de données",
+      "lastUpdated": "Dernière mise à jour {time}",
+      "noDataYet": "Pas encore de données"
+    },
+    "detail": {
+      "backToExplorer": "Retour à l'Explorateur",
+      "dataPoints": "Points de Données",
+      "noData": "Aucun point de données trouvé pour cette métrique",
+      "timestamp": "Horodatage",
+      "value": "Valeur",
+      "metadata": "Métadonnées",
+      "rowsPerPage": "Lignes par page",
+      "of": "sur",
+      "loading": "Chargement des données...",
+      "sortAsc": "Tri croissant",
+      "sortDesc": "Tri décroissant"
+    },
+    "configurator": {
+      "title": "Configurateur de Graphiques",
+      "description": "Créer et personnaliser des graphiques",
+      "createChart": "Créer un Graphique",
+      "selectMetrics": "Sélectionner les Métriques",
+      "configureChart": "Configurer le Graphique",
+      "preview": "Aperçu",
+      "save": "Enregistrer le Graphique"
+    },
+    "library": {
+      "title": "Bibliothèque de Graphiques",
+      "description": "Parcourir et gérer vos graphiques",
+      "noCharts": "Aucun graphique trouvé",
+      "searchPlaceholder": "Rechercher des graphiques...",
+      "createNew": "Créer un Nouveau Graphique"
+    }
+  },
+  "library": {
+    "detail": {
+      "backToLibrary": "Retour à la Bibliothèque",
+      "chartNotFound": "Graphique non trouvé"
+    }
   }
 }

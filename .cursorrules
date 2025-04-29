@@ -2,6 +2,30 @@
 
 This project is a modern full-stack boilerplate utilizing Next.js 15, Supabase, Shadcn/UI, and more. It provides a solid foundation for building web applications with authentication, internationalization, and database integration.
 
+## Data visualization module
+
+The project includes a module for interactive data visualization inspired by Grafana, leveraging Supabase for data storage and Next.js for the frontend. It offers:
+
+Metrics Explorer: Interactive browsing, filtering, and quick visualization of stored metrics.
+
+Chart Builder: Graphical interface to create customizable charts (types, colors, axes, legends).
+
+Charts Library: Management of saved charts with options for viewing, editing, duplicating, and exporting.
+
+JSON-based Configurations: Flexible storage of chart and metric configurations using PostgreSQL's JSONB.
+
+Real-time Previews: Immediate visual feedback during chart customization.
+
+Optimized Queries: Indexed database schemas designed for performance.
+
+Dynamic UI Components: Built with Shadcn/UI and Tailwind for consistent design.
+
+Extensible Architecture: Easily extendable to new visualization types or data sources.
+
+Simplified User Experience: Intuitive interfaces tailored for both technical and non-technical users.
+
+Reusable Logic: Adheres to DRY principles with abstracted utilities and components.
+
 ## Project Structure
 
 The project follows a well-organized structure:

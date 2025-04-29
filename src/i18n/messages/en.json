@@ -36,12 +36,16 @@
     "description": "Lorem ipsum dolor, sit amet consectetur adipisicing elit. Dignissimos atque nisi necessitatibus neque voluptates libero aperiam nam repellat quam, ab perferendis cum animi repellendus ratione eius dolores et iure rerum!"
   },
   "common": {
-    "logo": "Logo"
+    "logo": "Logo",
+    "page": "Page"
   },
   "navigation": {
     "home": "Home",
     "mainMenu": "Main menu",
-    "todos": "Todos"
+    "todos": "Todos",
+    "explorer": "Explorer",
+    "configurator": "Configurator",
+    "library": "Library"
   },
   "settings": {
     "title": "Settings",
@@ -62,5 +66,54 @@
     "newTodoPlaceholder": "Add a new todo...",
     "noTodos": "No todos yet",
     "showAll": "Show all"
+  },
+  "metrics": {
+    "explorer": {
+      "title": "Metrics Explorer",
+      "description": "Browse and analyze available metrics",
+      "searchPlaceholder": "Search metrics...",
+      "noMetrics": "No metrics found",
+      "source": "Source",
+      "noSource": "No source",
+      "noDescription": "No description",
+      "dataPoints": "data points",
+      "lastUpdated": "Last updated {time}",
+      "noDataYet": "No data yet"
+    },
+    "detail": {
+      "backToExplorer": "Back to Explorer",
+      "dataPoints": "Data Points",
+      "noData": "No data points found for this metric",
+      "timestamp": "Timestamp",
+      "value": "Value",
+      "metadata": "Metadata",
+      "rowsPerPage": "Rows per page",
+      "of": "of",
+      "loading": "Loading data...",
+      "sortAsc": "Sort ascending",
+      "sortDesc": "Sort descending"
+    },
+    "configurator": {
+      "title": "Chart Configurator",
+      "description": "Create and customize charts",
+      "createChart": "Create Chart",
+      "selectMetrics": "Select Metrics",
+      "configureChart": "Configure Chart",
+      "preview": "Preview",
+      "save": "Save Chart"
+    },
+    "library": {
+      "title": "Charts Library",
+      "description": "Browse and manage your charts",
+      "noCharts": "No charts found",
+      "searchPlaceholder": "Search charts...",
+      "createNew": "Create New Chart"
+    }
+  },
+  "library": {
+    "detail": {
+      "backToLibrary": "Back to Library",
+      "chartNotFound": "Chart not found"
+    }
   }
 }

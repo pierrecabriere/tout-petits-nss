@@ -12,7 +12,17 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
 } from '@/components/ui/sidebar';
-import { Home, User2, ChevronUp, ListCheck, Monitor, LogOut, LucideProps } from 'lucide-react';
+import {
+  Home,
+  User2,
+  ChevronUp,
+  Monitor,
+  LogOut,
+  LucideProps,
+  BarChart2,
+  Settings,
+  Library,
+} from 'lucide-react';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -36,9 +46,19 @@ const items: Array<{
   icon: ForwardRefExoticComponent<Omit<LucideProps, 'ref'> & RefAttributes<SVGSVGElement>>;
 }> = [
   {
-    titleKey: 'navigation.todos',
-    url: '/todos',
-    icon: ListCheck,
+    titleKey: 'navigation.explorer',
+    url: '/explorer',
+    icon: BarChart2,
+  },
+  {
+    titleKey: 'navigation.configurator',
+    url: '/configurator',
+    icon: Settings,
+  },
+  {
+    titleKey: 'navigation.library',
+    url: '/library',
+    icon: Library,
   },
 ];
 
@@ -60,7 +80,7 @@ export default function MainSidebar() {
   return (
     <Sidebar>
       <SidebarHeader>
-        <div className="flex-1 flex items-center justify-center p-4">
+        <div className="flex flex-1 items-center justify-center p-4">
           <Image src="/images/logo.svg" alt={t('common.logo')} width={130} height={100} />
         </div>
       </SidebarHeader>
@@ -106,7 +126,7 @@ export default function MainSidebar() {
                   <SidebarMenuButton data-testid="user-button">
                     <User2 />
                     {currentUser?.data?.email ? (
-                      <span className="h-6 inline-flex items-center text-sm truncate flex-shrink">
+                      <span className="inline-flex h-6 flex-shrink items-center truncate text-sm">
                         {currentUser?.data?.email}
                       </span>
                     ) : (
