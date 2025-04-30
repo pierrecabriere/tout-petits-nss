@@ -2,7 +2,7 @@
 
 import { useTranslations } from 'next-intl';
 import { useParams, useRouter } from 'next/navigation';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { useQuery } from '@tanstack/react-query';
@@ -10,7 +10,7 @@ import supabaseClient from '@/lib/supabase-client';
 import { Tables } from '@/types/database';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Badge } from '@/components/ui/badge';
-import { ChevronLeft, ArrowUpDown, ChevronDown, ChevronUp } from 'lucide-react';
+import { ChevronLeft, ArrowUpDown, ChevronDown, ChevronUp, FilterIcon } from 'lucide-react';
 import {
   ColumnDef,
   useReactTable,
@@ -39,11 +39,15 @@ import {
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import { useLocale } from 'next-intl';
+import { DateRangePicker } from '@/components/ui/date-range-picker';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 
 // Data point type with additional typing for JSON metadata
-type DataPoint = Tables<'data_points'> & {
-  formatted_meta?: string;
-  formatted_ts?: string;
+type DataPoint = Tables<'metric_data'> & {
+  formatted_metadata?: string;
+  formatted_date?: string;
+  region_name?: string;
+  year?: string;
 };
 
 export default function MetricDetailPage() {
@@ -52,8 +56,12 @@ export default function MetricDetailPage() {
   const router = useRouter();
   const locale = useLocale();
   const [pageSize, setPageSize] = useState(10);
-  const [sorting, setSorting] = useState<SortingState>([{ id: 'ts', desc: true }]);
+  const [sorting, setSorting] = useState<SortingState>([{ id: 'date', desc: true }]);
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
+
+  // Filter states
+  const [dateRange, setDateRange] = useState<{ from?: Date; to?: Date }>({});
+  const [selectedRegion, setSelectedRegion] = useState<string>('all');
 
   // Get the current metric ID from the URL
   const metricId = params.id as string;
@@ -64,28 +72,95 @@ export default function MetricDetailPage() {
     queryFn: async () => {
       const { data, error } = await supabaseClient
         .from('metrics')
-        .select('*, data_sources(*)')
+        .select('*')
         .eq('id', metricId)
         .single();
 
       if (error) throw error;
-      return data as Tables<'metrics'> & { data_sources: Tables<'data_sources'> | null };
+
+      // Fetch source information if available in metadata
+      let source = null;
+      if (
+        data.metadata &&
+        typeof data.metadata === 'object' &&
+        data.metadata !== null &&
+        'source_id' in data.metadata
+      ) {
+        const sourceId = (data.metadata as { source_id: string }).source_id;
+
+        if (sourceId) {
+          const { data: sourceData, error: sourceError } = await supabaseClient
+            .from('sources')
+            .select('*')
+            .eq('id', sourceId)
+            .maybeSingle();
+
+          if (!sourceError) {
+            source = sourceData;
+          }
+        }
+      }
+
+      return { ...data, source };
     },
   });
 
-  // Fetch data points with server-side sorting
+  // Fetch regions to use for data point lookup
+  const { data: regions } = useQuery({
+    queryKey: ['regions'],
+    queryFn: async () => {
+      const { data, error } = await supabaseClient.from('regions').select('*');
+
+      if (error) throw error;
+
+      // Create a lookup map for easier access
+      const regionsMap = new Map();
+      data.forEach(region => {
+        regionsMap.set(region.id, region);
+      });
+
+      return regionsMap;
+    },
+  });
+
+  // Fetch data points with server-side sorting and filtering
   const { data: dataPoints, isLoading: isLoadingData } = useQuery({
-    queryKey: ['data-points', metricId, sorting],
+    queryKey: ['metric-data', metricId, sorting, dateRange, selectedRegion],
     queryFn: async () => {
       const activeSorting = sorting[0];
 
-      let query = supabaseClient.from('data_points').select('*').eq('metric_id', metricId);
+      // Start building the query
+      let query = supabaseClient.from('metric_data').select('*').eq('metric_id', metricId);
 
-      // Apply sorting from the TanStack Table state
+      // Apply date range filter if provided
+      if (dateRange.from) {
+        const fromDate = new Date(dateRange.from);
+        fromDate.setHours(0, 0, 0, 0);
+        query = query.gte('date', fromDate.toISOString().split('T')[0]);
+      }
+
+      if (dateRange.to) {
+        const toDate = new Date(dateRange.to);
+        toDate.setHours(23, 59, 59, 999);
+        // Add one day to make it inclusive
+        toDate.setDate(toDate.getDate() + 1);
+        query = query.lt('date', toDate.toISOString().split('T')[0]);
+      }
+
+      // Apply region filter if selected
+      if (selectedRegion !== 'all') {
+        query = query.eq('region_id', selectedRegion);
+      }
+
+      // Apply sorting - map year to date for server-side sorting
       if (activeSorting) {
-        query = query.order(activeSorting.id, {
-          ascending: !activeSorting.desc,
-        });
+        const sortField = activeSorting.id === 'year' ? 'date' : activeSorting.id;
+        // On vérifie que le champ existe bien dans la table
+        if (['date', 'value', 'created_at', 'updated_at'].includes(sortField)) {
+          query = query.order(sortField, {
+            ascending: !activeSorting.desc,
+          });
+        }
       }
 
       const { data, error } = await query;
@@ -93,12 +168,24 @@ export default function MetricDetailPage() {
       if (error) throw error;
 
       // Process the data to format JSON metadata and timestamps
-      return data.map(point => ({
-        ...point,
-        formatted_meta: point.meta ? JSON.stringify(point.meta) : '',
-        formatted_ts: formatDatetime(new Date(point.ts)),
-      })) as DataPoint[];
+      return data.map(point => {
+        // Get region name from the lookup map
+        const region = point.region_id && regions ? regions.get(point.region_id) : null;
+
+        // Extract just the year from the date
+        const date = new Date(point.date);
+        const year = date.getFullYear().toString();
+
+        return {
+          ...point,
+          formatted_metadata: point.metadata ? JSON.stringify(point.metadata) : '',
+          formatted_date: formatDatetime(date),
+          region_name: region ? region.name : '',
+          year: year,
+        };
+      }) as DataPoint[];
     },
+    enabled: !!regions, // Only run this query after regions are loaded
   });
 
   // Format datetime based on the current locale
@@ -113,10 +200,16 @@ export default function MetricDetailPage() {
     router.push('/explorer');
   };
 
+  // Reset filters
+  const resetFilters = () => {
+    setDateRange({});
+    setSelectedRegion('all');
+  };
+
   // Table columns definition
   const columns: ColumnDef<DataPoint>[] = [
     {
-      accessorKey: 'ts',
+      accessorKey: 'year',
       header: ({ column }) => {
         const isSorted = column.getIsSorted();
         return (
@@ -125,14 +218,20 @@ export default function MetricDetailPage() {
             className="-ml-4"
             onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}
           >
-            {t('metrics.detail.timestamp')}
+            {t('common.year')}
             {isSorted === 'asc' && <ChevronUp className="ml-2 h-4 w-4" />}
             {isSorted === 'desc' && <ChevronDown className="ml-2 h-4 w-4" />}
             {!isSorted && <ArrowUpDown className="ml-2 h-4 w-4" />}
           </Button>
         );
       },
-      cell: ({ row }) => <div>{row.original.formatted_ts}</div>,
+      cell: ({ row }) => <div>{row.original.year}</div>,
+    },
+    {
+      accessorKey: 'region_name',
+      header: () => <div className="font-medium">{t('common.region')}</div>,
+      cell: ({ row }) => <div>{row.original.region_name || '-'}</div>,
+      enableSorting: false, // Désactiver le tri sur cette colonne
     },
     {
       accessorKey: 'value',
@@ -158,18 +257,7 @@ export default function MetricDetailPage() {
         </div>
       ),
     },
-    {
-      accessorKey: 'formatted_meta',
-      header: () => <span>{t('metrics.detail.metadata')}</span>,
-      cell: ({ row }) =>
-        row.original.formatted_meta ? (
-          <div className="max-w-[500px] truncate">
-            <code className="rounded bg-muted px-1 py-1 font-mono text-sm">
-              {row.original.formatted_meta}
-            </code>
-          </div>
-        ) : null,
-    },
+    // Metadata column is hidden
   ];
 
   // Initialize the table
@@ -179,12 +267,18 @@ export default function MetricDetailPage() {
     state: {
       sorting,
       columnFilters,
+      pagination: {
+        pageIndex: 0,
+        pageSize,
+      },
     },
     onSortingChange: setSorting,
     onColumnFiltersChange: setColumnFilters,
     getCoreRowModel: getCoreRowModel(),
     getPaginationRowModel: getPaginationRowModel(),
     getFilteredRowModel: getFilteredRowModel(),
+    manualSorting: true, // Tell the table that we're sorting on the server
+    manualFiltering: true, // Tell the table that we're filtering on the server
   });
 
   return (
@@ -208,13 +302,76 @@ export default function MetricDetailPage() {
             {metric.unit && <Badge variant="outline">{metric.unit}</Badge>}
           </div>
           {metric.description && <p className="mt-1 text-muted-foreground">{metric.description}</p>}
+          {metric.source && (
+            <p className="mt-1 text-sm text-muted-foreground">
+              {t('metrics.explorer.source')}: {metric.source.name}
+            </p>
+          )}
         </div>
       ) : null}
 
       <Card>
         <CardHeader>
-          <CardTitle>{t('metrics.detail.dataPoints')}</CardTitle>
-          <CardDescription>{metric?.description}</CardDescription>
+          <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+            <div>
+              <CardTitle>{t('metrics.detail.dataPoints')}</CardTitle>
+              <CardDescription>{metric?.description}</CardDescription>
+            </div>
+            <div className="flex flex-col gap-2 md:flex-row md:items-center">
+              {/* Reset Filters Button */}
+              <Button
+                variant="ghost"
+                onClick={resetFilters}
+                disabled={!dateRange.from && !dateRange.to && selectedRegion === 'all'}
+              >
+                {t('common.resetFilters')}
+              </Button>
+
+              {/* Date Range Filter */}
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button variant="outline" className="w-full md:w-auto">
+                    <FilterIcon className="mr-2 h-4 w-4" />
+                    {dateRange.from || dateRange.to ? (
+                      <>
+                        {dateRange.from ? format(dateRange.from, 'yyyy') : ''}
+                        {dateRange.from && dateRange.to ? ' - ' : ''}
+                        {dateRange.to ? format(dateRange.to, 'yyyy') : ''}
+                      </>
+                    ) : (
+                      t('common.allDates')
+                    )}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="end">
+                  <DateRangePicker
+                    initialDateFrom={dateRange.from}
+                    initialDateTo={dateRange.to}
+                    onUpdate={({ range }) => setDateRange(range)}
+                    align="start"
+                    locale={locale}
+                    showCompare={false}
+                  />
+                </PopoverContent>
+              </Popover>
+
+              {/* Region Filter */}
+              <Select value={selectedRegion} onValueChange={setSelectedRegion}>
+                <SelectTrigger className="w-full md:w-[200px]">
+                  <SelectValue placeholder={t('common.allRegions')} />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">{t('common.allRegions')}</SelectItem>
+                  {regions &&
+                    Array.from(regions.values()).map(region => (
+                      <SelectItem key={region.id} value={region.id}>
+                        {region.name}
+                      </SelectItem>
+                    ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
         </CardHeader>
         <CardContent>
           {isLoadingData ? (

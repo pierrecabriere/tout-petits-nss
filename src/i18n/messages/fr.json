@@ -11,7 +11,12 @@
   },
   "common": {
     "logo": "Logo",
-    "page": "Page"
+    "page": "Page",
+    "year": "Année",
+    "region": "Région",
+    "allDates": "Toutes les dates",
+    "allRegions": "Toutes les régions",
+    "resetFilters": "Réinitialiser les filtres"
   },
   "navigation": {
     "home": "Accueil",
@@ -71,6 +76,8 @@
     "explorer": {
       "title": "Explorateur de Métriques",
       "description": "Parcourir et analyser les métriques disponibles",
+      "treeView": "Parcourir les métriques dans une vue hiérarchique",
+      "gridView": "Vue en grille",
       "searchPlaceholder": "Rechercher des métriques...",
       "noMetrics": "Aucune métrique trouvée",
       "source": "Source",
@@ -78,7 +85,10 @@
       "noDescription": "Pas de description",
       "dataPoints": "points de données",
       "lastUpdated": "Dernière mise à jour {time}",
-      "noDataYet": "Pas encore de données"
+      "noDataYet": "Pas encore de données",
+      "parentMetric": "Métrique parente",
+      "viewDetails": "Voir les détails",
+      "viewData": "Voir les données"
     },
     "detail": {
       "backToExplorer": "Retour à l'Explorateur",

@@ -3,45 +3,41 @@
 import { useTranslations } from 'next-intl';
 import { useState } from 'react';
 import { Input } from '@/components/ui/input';
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-  CardFooter,
-} from '@/components/ui/card';
+import { Card, CardContent, CardFooter } from '@/components/ui/card';
 import { useQuery } from '@tanstack/react-query';
 import supabaseClient from '@/lib/supabase-client';
 import { Tables } from '@/types/database';
 import { Skeleton } from '@/components/ui/skeleton';
+import { BarChart2, Folder, FileText, Grid, List, InfoIcon, CalendarIcon } from 'lucide-react';
+import { useRouter } from 'next/navigation';
+import { TreeView, type TreeDataItem } from '@/components/tree-view';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
 import { formatDistanceToNow } from 'date-fns';
 import { fr } from 'date-fns/locale';
-import { Badge } from '@/components/ui/badge';
-import { CalendarIcon, BarChart, ChevronRight } from 'lucide-react';
 import { useLocale } from 'next-intl';
-import { useRouter } from 'next/navigation';
 
 type MetricWithStats = Tables<'metrics'> & {
-  data_sources: Tables<'data_sources'> | null;
+  source: Tables<'sources'> | null;
   data_count: number;
   last_data_point: string | null;
 };
 
-export default function ExplorerPage() {
+export default function MetricTreePage() {
   const t = useTranslations();
-  const locale = useLocale();
   const router = useRouter();
+  const locale = useLocale();
   const [searchQuery, setSearchQuery] = useState('');
+  const [selectedMetric, setSelectedMetric] = useState<MetricWithStats | null>(null);
 
   // Fetch metrics data with stats
   const { data: metrics, isLoading } = useQuery({
-    queryKey: ['metrics-with-stats'],
+    queryKey: ['metrics-with-stats-tree'],
     queryFn: async () => {
-      // First get all metrics
+      // Get all metrics
       const { data: metricsData, error: metricsError } = await supabaseClient
         .from('metrics')
-        .select('*, data_sources(*)');
+        .select('*');
 
       if (metricsError) throw metricsError;
 
@@ -50,7 +46,7 @@ export default function ExplorerPage() {
         metricsData.map(async metric => {
           // Get count of data points
           const { count, error: countError } = await supabaseClient
-            .from('data_points')
+            .from('metric_data')
             .select('*', { count: 'exact', head: true })
             .eq('metric_id', metric.id);
 
@@ -58,18 +54,44 @@ export default function ExplorerPage() {
 
           // Get latest data point
           const { data: latestData, error: latestError } = await supabaseClient
-            .from('data_points')
-            .select('ts')
+            .from('metric_data')
+            .select('date')
             .eq('metric_id', metric.id)
-            .order('ts', { ascending: false })
+            .order('date', { ascending: false })
             .limit(1);
 
           if (latestError) throw latestError;
 
+          // Get source info if available
+          let source = null;
+
+          // Check if metadata exists and is an object containing source_id
+          if (
+            metric.metadata &&
+            typeof metric.metadata === 'object' &&
+            metric.metadata !== null &&
+            'source_id' in metric.metadata
+          ) {
+            const sourceId = (metric.metadata as { source_id: string }).source_id;
+
+            if (sourceId) {
+              const { data: sourceData, error: sourceError } = await supabaseClient
+                .from('sources')
+                .select('*')
+                .eq('id', sourceId)
+                .maybeSingle();
+
+              if (!sourceError) {
+                source = sourceData;
+              }
+            }
+          }
+
           return {
             ...metric,
+            source,
             data_count: count || 0,
-            last_data_point: latestData && latestData.length > 0 ? latestData[0].ts : null,
+            last_data_point: latestData && latestData.length > 0 ? latestData[0].date : null,
           } as MetricWithStats;
         })
       );
@@ -77,13 +99,6 @@ export default function ExplorerPage() {
       return metricsWithStats;
     },
   });
-
-  // Filter metrics based on search query
-  const filteredMetrics = metrics?.filter(
-    metric =>
-      metric.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      metric.description?.toLowerCase().includes(searchQuery.toLowerCase())
-  );
 
   // Format date based on current locale
   const formatDate = (date: Date) => {
@@ -93,16 +108,114 @@ export default function ExplorerPage() {
     });
   };
 
+  // Function to transform metrics into tree data structure
+  const transformMetricsToTree = (metrics: MetricWithStats[] | undefined): TreeDataItem[] => {
+    if (!metrics) return [];
+
+    // Create a map of metrics by id for quick reference
+    const metricsMap = new Map<string, MetricWithStats>();
+    metrics.forEach(metric => {
+      metricsMap.set(metric.id, metric);
+    });
+
+    // Create a map to store parent-child relationships
+    const childrenMap = new Map<string, string[]>();
+
+    // Initial pass to organize the child-parent relationships
+    metrics.forEach(metric => {
+      if (metric.parent_id) {
+        if (!childrenMap.has(metric.parent_id)) {
+          childrenMap.set(metric.parent_id, []);
+        }
+        childrenMap.get(metric.parent_id)?.push(metric.id);
+      }
+    });
+
+    // Function to handle selection of a tree item
+    const handleSelectChange = (item: TreeDataItem | undefined) => {
+      if (item && metricsMap.has(item.id)) {
+        setSelectedMetric(metricsMap.get(item.id) || null);
+      } else {
+        setSelectedMetric(null);
+      }
+    };
+
+    // Function to build tree recursively
+    const buildTree = (metricId: string): TreeDataItem => {
+      const metric = metricsMap.get(metricId)!;
+      const childrenIds = childrenMap.get(metricId) || [];
+
+      const treeItem: TreeDataItem = {
+        id: metric.id,
+        name: metric.name,
+        icon: childrenIds.length > 0 ? Folder : FileText,
+        selectedIcon: childrenIds.length > 0 ? Folder : FileText,
+        openIcon: childrenIds.length > 0 ? Folder : FileText,
+      };
+
+      if (childrenIds.length > 0) {
+        treeItem.children = childrenIds.map(id => buildTree(id));
+      }
+
+      return treeItem;
+    };
+
+    // Find root level metrics (no parent_id or parent_id that doesn't exist in our metrics)
+    const rootMetrics = metrics.filter(
+      metric => !metric.parent_id || !metricsMap.has(metric.parent_id)
+    );
+
+    // Build the tree starting from root metrics
+    return rootMetrics.map(metric => {
+      return buildTree(metric.id);
+    });
+  };
+
+  // Filter metrics based on search query
+  const filteredMetrics = metrics?.filter(
+    metric =>
+      metric.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      metric.description?.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
+  // Convert filtered metrics to tree structure
+  const treeData = transformMetricsToTree(filteredMetrics);
+
   // Navigate to metric detail page
   const handleMetricClick = (metricId: string) => {
     router.push(`/explorer/${metricId}`);
   };
 
+  // Navigate to grid view
+  const handleGridViewClick = () => {
+    router.push('/explorer');
+  };
+
   return (
     <div className="space-y-4">
-      <div>
-        <h1 className="text-3xl font-bold tracking-tight">{t('metrics.explorer.title')}</h1>
-        <p className="text-muted-foreground">{t('metrics.explorer.description')}</p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-3xl font-bold tracking-tight">{t('metrics.explorer.title')}</h1>
+          <p className="text-muted-foreground">{t('metrics.explorer.treeView')}</p>
+        </div>
+        <div className="flex gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleGridViewClick}
+            title={t('metrics.explorer.gridView')}
+          >
+            <Grid className="h-4 w-4" />
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            className="active"
+            title={t('metrics.explorer.treeView')}
+          >
+            <List className="h-4 w-4" />
+          </Button>
+        </div>
       </div>
 
       <Input
@@ -113,59 +226,83 @@ export default function ExplorerPage() {
       />
 
       {isLoading ? (
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
-          {Array(6)
-            .fill(0)
-            .map((_, i) => (
-              <Skeleton key={i} className="h-[200px] w-full rounded-lg" />
-            ))}
-        </div>
-      ) : filteredMetrics?.length ? (
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
-          {filteredMetrics.map(metric => (
-            <Card
-              key={metric.id}
-              className="group cursor-pointer overflow-hidden transition-all hover:shadow-md"
-              onClick={() => handleMetricClick(metric.id)}
-            >
-              <CardHeader className="pb-2">
-                <CardTitle className="flex items-center justify-between">
-                  <span>{metric.name}</span>
-                  {metric.unit && <Badge variant="outline">{metric.unit}</Badge>}
-                </CardTitle>
-                <CardDescription>
-                  {metric.description || t('metrics.explorer.noDescription')}
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="mb-2 text-sm text-muted-foreground">
-                  {t('metrics.explorer.source')}:{' '}
-                  {metric.data_sources?.name || t('metrics.explorer.noSource')}
+        <Skeleton className="h-[400px] w-full rounded-lg" />
+      ) : treeData.length > 0 ? (
+        <Card>
+          <CardContent className="p-6">
+            <TreeView
+              data={treeData}
+              defaultNodeIcon={Folder}
+              defaultLeafIcon={FileText}
+              expandAll
+              onSelectChange={item => {
+                if (item && metrics) {
+                  const metric = metrics.find(m => m.id === item.id);
+                  if (metric) {
+                    setSelectedMetric(metric);
+                  }
+                }
+              }}
+            />
+          </CardContent>
+          {selectedMetric && (
+            <CardFooter className="border-t bg-muted/50 px-6 py-3">
+              <div className="flex w-full flex-col gap-2">
+                <div className="flex items-center justify-between">
+                  <h3 className="font-semibold">{selectedMetric.name}</h3>
+                  {selectedMetric.unit && <Badge variant="outline">{selectedMetric.unit}</Badge>}
                 </div>
-                <div className="mt-4 flex items-center gap-2">
-                  <BarChart className="h-4 w-4 text-muted-foreground" />
-                  <span className="text-sm font-medium">
-                    {metric.data_count} {t('metrics.explorer.dataPoints')}
-                  </span>
+                <p className="text-sm text-muted-foreground">
+                  {selectedMetric.description || t('metrics.explorer.noDescription')}
+                </p>
+                <div className="mt-2 flex items-center gap-4">
+                  <div className="flex items-center text-sm">
+                    <InfoIcon className="mr-2 h-3 w-3" />
+                    <span>
+                      {t('metrics.explorer.source')}:{' '}
+                      {selectedMetric.source?.name || t('metrics.explorer.noSource')}
+                    </span>
+                  </div>
+                  <div className="flex items-center text-sm">
+                    <BarChart2 className="mr-2 h-3 w-3" />
+                    <span>
+                      {selectedMetric.data_count} {t('metrics.explorer.dataPoints')}
+                    </span>
+                  </div>
+                  {selectedMetric.last_data_point && (
+                    <div className="flex items-center text-sm">
+                      <CalendarIcon className="mr-2 h-3 w-3" />
+                      <span>
+                        {t('metrics.explorer.lastUpdated', {
+                          time: formatDate(new Date(selectedMetric.last_data_point)),
+                        })}
+                      </span>
+                    </div>
+                  )}
                 </div>
-              </CardContent>
-              <CardFooter className="flex items-center justify-between border-t bg-muted/50 px-6 py-3">
-                <div className="flex items-center text-xs text-muted-foreground">
-                  <CalendarIcon className="mr-2 h-3 w-3" />
-                  {metric.last_data_point
-                    ? t('metrics.explorer.lastUpdated', {
-                        time: formatDate(new Date(metric.last_data_point)),
-                      })
-                    : t('metrics.explorer.noDataYet')}
+                {selectedMetric.parent_id && (
+                  <div className="mt-1 text-xs text-muted-foreground">
+                    {t('metrics.explorer.parentMetric')}:{' '}
+                    {metrics?.find(m => m.id === selectedMetric.parent_id)?.name}
+                  </div>
+                )}
+                <div className="mt-2">
+                  <Button
+                    size="sm"
+                    onClick={() => handleMetricClick(selectedMetric.id)}
+                    disabled={selectedMetric.data_count === 0}
+                  >
+                    {t('metrics.explorer.viewData')}
+                  </Button>
                 </div>
-                <ChevronRight className="h-4 w-4 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100" />
-              </CardFooter>
-            </Card>
-          ))}
-        </div>
+              </div>
+            </CardFooter>
+          )}
+        </Card>
       ) : (
         <Card>
           <CardContent className="flex flex-col items-center justify-center py-10">
+            <BarChart2 className="mb-4 h-12 w-12 text-muted-foreground" />
             <p className="text-muted-foreground">{t('metrics.explorer.noMetrics')}</p>
           </CardContent>
         </Card>

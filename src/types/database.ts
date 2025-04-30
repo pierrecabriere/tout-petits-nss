@@ -34,162 +34,393 @@ export type Database = {
   }
   public: {
     Tables: {
-      chart_metrics: {
+      categories: {
+        Row: {
+          description: string | null
+          id: string
+          name: string
+        }
+        Insert: {
+          description?: string | null
+          id?: string
+          name: string
+        }
+        Update: {
+          description?: string | null
+          id?: string
+          name?: string
+        }
+        Relationships: []
+      }
+      chart_highlights: {
         Row: {
           chart_id: string
+          context: Json | null
+          created_at: string
+          highlight: string
           id: string
-          metric_id: string
-          series_cfg: Json | null
+          updated_at: string
         }
         Insert: {
           chart_id: string
+          context?: Json | null
+          created_at?: string
+          highlight: string
           id?: string
-          metric_id: string
-          series_cfg?: Json | null
+          updated_at?: string
         }
         Update: {
           chart_id?: string
+          context?: Json | null
+          created_at?: string
+          highlight?: string
           id?: string
-          metric_id?: string
-          series_cfg?: Json | null
+          updated_at?: string
         }
         Relationships: [
           {
-            foreignKeyName: "chart_metrics_chart_id_fkey"
+            foreignKeyName: "chart_highlights_chart_id_fkey"
             columns: ["chart_id"]
             isOneToOne: false
             referencedRelation: "charts"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "chart_metrics_metric_id_fkey"
-            columns: ["metric_id"]
-            isOneToOne: false
-            referencedRelation: "metrics"
             referencedColumns: ["id"]
           },
         ]
       }
       charts: {
         Row: {
-          chart_type: string
           config: Json
           created_at: string
-          created_by: string | null
+          description: string | null
+          export_config: Json | null
           id: string
+          metadata: Json | null
           name: string
           updated_at: string
         }
         Insert: {
-          chart_type: string
           config: Json
           created_at?: string
-          created_by?: string | null
+          description?: string | null
+          export_config?: Json | null
           id?: string
+          metadata?: Json | null
           name: string
           updated_at?: string
         }
         Update: {
-          chart_type?: string
           config?: Json
           created_at?: string
-          created_by?: string | null
+          description?: string | null
+          export_config?: Json | null
           id?: string
+          metadata?: Json | null
           name?: string
           updated_at?: string
         }
         Relationships: []
       }
-      data_points: {
+      file_tags: {
         Row: {
-          id: number
-          meta: Json | null
+          file_id: string
+          tag_id: string
+        }
+        Insert: {
+          file_id: string
+          tag_id: string
+        }
+        Update: {
+          file_id?: string
+          tag_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "file_tags_file_id_fkey"
+            columns: ["file_id"]
+            isOneToOne: false
+            referencedRelation: "files"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "file_tags_tag_id_fkey"
+            columns: ["tag_id"]
+            isOneToOne: false
+            referencedRelation: "tags"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      files: {
+        Row: {
+          category_id: string | null
+          filename: string
+          id: string
+          metadata: Json | null
+          path: string
+          source_id: string | null
+          uploaded_at: string
+          uploaded_by: string | null
+        }
+        Insert: {
+          category_id?: string | null
+          filename: string
+          id?: string
+          metadata?: Json | null
+          path: string
+          source_id?: string | null
+          uploaded_at?: string
+          uploaded_by?: string | null
+        }
+        Update: {
+          category_id?: string | null
+          filename?: string
+          id?: string
+          metadata?: Json | null
+          path?: string
+          source_id?: string | null
+          uploaded_at?: string
+          uploaded_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "files_category_id_fkey"
+            columns: ["category_id"]
+            isOneToOne: false
+            referencedRelation: "categories"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "files_source_id_fkey"
+            columns: ["source_id"]
+            isOneToOne: false
+            referencedRelation: "sources"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      metric_data: {
+        Row: {
+          created_at: string
+          date: string
+          id: string
+          metadata: Json | null
           metric_id: string
-          ts: string
+          region_id: string | null
+          updated_at: string
           value: number
         }
         Insert: {
-          id?: number
-          meta?: Json | null
+          created_at?: string
+          date: string
+          id?: string
+          metadata?: Json | null
           metric_id: string
-          ts: string
+          region_id?: string | null
+          updated_at?: string
           value: number
         }
         Update: {
-          id?: number
-          meta?: Json | null
+          created_at?: string
+          date?: string
+          id?: string
+          metadata?: Json | null
           metric_id?: string
-          ts?: string
+          region_id?: string | null
+          updated_at?: string
           value?: number
         }
         Relationships: [
           {
-            foreignKeyName: "data_points_metric_id_fkey"
+            foreignKeyName: "metric_data_metric_id_fkey"
             columns: ["metric_id"]
             isOneToOne: false
             referencedRelation: "metrics"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "metric_data_region_id_fkey"
+            columns: ["region_id"]
+            isOneToOne: false
+            referencedRelation: "regions"
+            referencedColumns: ["id"]
+          },
         ]
       }
-      data_sources: {
+      metric_data_tags: {
         Row: {
-          config: Json
-          created_at: string
-          id: string
-          name: string
-          type: string
+          metric_data_id: string
+          tag_id: string
         }
         Insert: {
-          config: Json
-          created_at?: string
-          id?: string
-          name: string
-          type: string
+          metric_data_id: string
+          tag_id: string
         }
         Update: {
-          config?: Json
-          created_at?: string
-          id?: string
-          name?: string
-          type?: string
+          metric_data_id?: string
+          tag_id?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "metric_data_tags_metric_data_id_fkey"
+            columns: ["metric_data_id"]
+            isOneToOne: false
+            referencedRelation: "metric_data"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "metric_data_tags_tag_id_fkey"
+            columns: ["tag_id"]
+            isOneToOne: false
+            referencedRelation: "tags"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       metrics: {
         Row: {
           created_at: string
           description: string | null
           id: string
+          metadata: Json | null
           name: string
-          source_id: string | null
+          parent_id: string | null
           unit: string | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          metadata?: Json | null
+          name: string
+          parent_id?: string | null
+          unit?: string | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          metadata?: Json | null
+          name?: string
+          parent_id?: string | null
+          unit?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "metrics_parent_id_fkey"
+            columns: ["parent_id"]
+            isOneToOne: false
+            referencedRelation: "metrics"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      notes: {
+        Row: {
+          created_at: string
+          id: string
+          metric_data_id: string | null
+          note: string
+          region_id: string | null
+          visible_end_date: string | null
+          visible_start_date: string | null
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          metric_data_id?: string | null
+          note: string
+          region_id?: string | null
+          visible_end_date?: string | null
+          visible_start_date?: string | null
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          metric_data_id?: string | null
+          note?: string
+          region_id?: string | null
+          visible_end_date?: string | null
+          visible_start_date?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "notes_metric_data_id_fkey"
+            columns: ["metric_data_id"]
+            isOneToOne: false
+            referencedRelation: "metric_data"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "notes_region_id_fkey"
+            columns: ["region_id"]
+            isOneToOne: false
+            referencedRelation: "regions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      regions: {
+        Row: {
+          code: string
+          created_at: string
+          id: string
+          name: string
+          updated_at: string
+        }
+        Insert: {
+          code: string
+          created_at?: string
+          id?: string
+          name: string
+          updated_at?: string
+        }
+        Update: {
+          code?: string
+          created_at?: string
+          id?: string
+          name?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      sources: {
+        Row: {
+          created_at: string
+          description: string | null
+          id: string
+          name: string
         }
         Insert: {
           created_at?: string
           description?: string | null
           id?: string
           name: string
-          source_id?: string | null
-          unit?: string | null
         }
         Update: {
           created_at?: string
           description?: string | null
           id?: string
           name?: string
-          source_id?: string | null
-          unit?: string | null
         }
-        Relationships: [
-          {
-            foreignKeyName: "metrics_source_id_fkey"
-            columns: ["source_id"]
-            isOneToOne: false
-            referencedRelation: "data_sources"
-            referencedColumns: ["id"]
-          },
-        ]
+        Relationships: []
+      }
+      tags: {
+        Row: {
+          id: string
+          name: string
+        }
+        Insert: {
+          id?: string
+          name: string
+        }
+        Update: {
+          id?: string
+          name?: string
+        }
+        Relationships: []
       }
     }
     Views: {
