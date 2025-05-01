@@ -174,7 +174,7 @@ export default function MetricDetailPage() {
 
         // Extract just the year from the date
         const date = new Date(point.date);
-        const year = date.getFullYear().toString();
+        const year = date.getUTCFullYear().toString();
 
         return {
           ...point,

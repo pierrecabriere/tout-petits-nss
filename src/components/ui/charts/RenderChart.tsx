@@ -44,6 +44,8 @@ type BaseChartConfig = {
   showAxisLabels?: boolean;
   colorScheme: 'default' | 'pastel' | 'vibrant';
   aggregation: 'none' | 'sum' | 'avg' | 'min' | 'max';
+  regionIds?: string[];
+  hideDots?: boolean;
 };
 
 // Chart-specific configurations
@@ -82,7 +84,8 @@ const COLOR_SCHEMES: ColorScheme = {
 };
 
 export default function RenderChart(props: RenderChartProps) {
-  const { metricIds, chartType, dateRange, showLegend, colorScheme, aggregation } = props;
+  const { metricIds, chartType, dateRange, showLegend, colorScheme, aggregation, regionIds } =
+    props;
   const showAxisLabels = props.showAxisLabels !== undefined ? props.showAxisLabels : true;
 
   // Extraire les propriétés spécifiques au type de graphique avec des valeurs par défaut
@@ -94,6 +97,7 @@ export default function RenderChart(props: RenderChartProps) {
       : undefined;
   const innerRadius = chartType === 'pie' ? (props as PieChartConfig).innerRadius || 0 : undefined;
   const outerRadius = chartType === 'pie' ? (props as PieChartConfig).outerRadius || 80 : undefined;
+  const hideDots = props.hideDots || false;
 
   const [chartData, setChartData] = useState<ChartDataPoint[]>([]);
   const [metricNames, setMetricNames] = useState<{ [key: string]: string }>({});
@@ -118,34 +122,38 @@ export default function RenderChart(props: RenderChartProps) {
 
   // Fetch data points for selected metrics and date range
   const { data: dataPoints, isLoading: isLoadingData } = useQuery({
-    queryKey: ['chart-data-points', metricIds, dateRange],
+    queryKey: ['chart-data-points', metricIds, dateRange, regionIds],
     queryFn: async () => {
       if (!metricIds.length || !dateRange.from || !dateRange.to) return [];
-
-      // Create queries for each metric to fetch its data points
-      const dataPromises = metricIds.map(metricId =>
-        supabaseClient
-          .from('data_points')
+      if (regionIds && regionIds.length === 0) return [];
+      const fromDate = dateRange.from.toISOString().split('T')[0];
+      const toDate = dateRange.to.toISOString().split('T')[0];
+      const dataPromises = metricIds.map(metricId => {
+        let query = supabaseClient
+          .from('metric_data')
           .select('*')
           .eq('metric_id', metricId)
-          .gte('ts', dateRange.from!.toISOString())
-          .lte('ts', dateRange.to!.toISOString())
-          .order('ts', { ascending: true })
-      );
-
+          .gte('date', fromDate)
+          .lte('date', toDate)
+          .order('date', { ascending: true });
+        if (regionIds && regionIds.length > 0) {
+          query = query.in('region_id', regionIds);
+        }
+        return query;
+      });
       const results = await Promise.all(dataPromises);
-
-      // Check for errors
       const errors = results.filter(result => result.error);
       if (errors.length) throw errors[0].error;
-
-      // Return the data points organized by metric
       return results.map((result, index) => ({
         metricId: metricIds[index],
         data: result.data || [],
       }));
     },
-    enabled: metricIds.length > 0 && !!dateRange.from && !!dateRange.to,
+    enabled:
+      metricIds.length > 0 &&
+      !!dateRange.from &&
+      !!dateRange.to &&
+      (regionIds === undefined || regionIds.length > 0),
   });
 
   // Process the fetched data into the format needed for charts
@@ -164,30 +172,30 @@ export default function RenderChart(props: RenderChartProps) {
     setMetricNames(namesMap);
     setMetricUnits(unitsMap);
 
-    // Organize data points by timestamp
+    // Organize data points by date (used as timestamp)
     const dataByTimestamp: { [timestamp: string]: { [metricId: string]: number } } = {};
 
     dataPoints.forEach(({ metricId, data }) => {
       data.forEach(point => {
-        const timestamp = point.ts;
+        const timestamp = point.date; // Use date as timestamp
 
         if (!dataByTimestamp[timestamp]) {
           dataByTimestamp[timestamp] = {};
         }
 
-        dataByTimestamp[timestamp][metricId] = point.value;
+        if (!dataByTimestamp[timestamp][metricId]) {
+          dataByTimestamp[timestamp][metricId] = 0;
+        }
+
+        dataByTimestamp[timestamp][metricId] += Number(point.value);
       });
     });
 
     // Transform the data into an array for Recharts
     const processedData: ChartDataPoint[] = Object.keys(dataByTimestamp).map(timestamp => {
       const date = new Date(timestamp);
-      const formattedDate = new Intl.DateTimeFormat('en-US', {
-        month: 'short',
-        day: 'numeric',
-        hour: 'numeric',
-        minute: 'numeric',
-      }).format(date);
+      // Afficher uniquement l'année
+      const formattedDate = date.getUTCFullYear().toString();
 
       const dataPoint: ChartDataPoint = {
         timestamp,
@@ -290,7 +298,8 @@ export default function RenderChart(props: RenderChartProps) {
                 dataKey={metricId}
                 name={metricId}
                 stroke={colors[index % colors.length]}
-                activeDot={{ r: 8 }}
+                activeDot={hideDots ? false : { r: 8 }}
+                dot={hideDots ? false : true}
                 strokeWidth={2}
               />
             ))}

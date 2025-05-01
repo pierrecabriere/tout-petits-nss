@@ -73,6 +73,10 @@
     "showAll": "Afficher tout"
   },
   "metrics": {
+    "selected": "{count, plural, =1 {métrique sélectionnée} other {métriques sélectionnées}}",
+    "selectMetrics": "Sélectionner des métriques",
+    "searchPlaceholder": "Rechercher des métriques...",
+    "noResults": "Aucune métrique trouvée",
     "explorer": {
       "title": "Explorateur de Métriques",
       "description": "Parcourir et analyser les métriques disponibles",
@@ -110,7 +114,60 @@
       "selectMetrics": "Sélectionner les Métriques",
       "configureChart": "Configurer le Graphique",
       "preview": "Aperçu",
-      "save": "Enregistrer le Graphique"
+      "save": "Enregistrer le Graphique",
+      "chartConfiguration": "Configuration et Aperçu du Graphique",
+      "configureCustomize": "Configurer les métriques et personnaliser votre graphique",
+      "basicSettings": "Paramètres de Base",
+      "chartOptions": "Options du Graphique",
+      "chartType": "Type de Graphique",
+      "selectChartType": "Sélectionner le type de graphique",
+      "chartTypes": {
+        "line": "Graphique Linéaire",
+        "area": "Graphique à Aires",
+        "bar": "Graphique à Barres",
+        "pie": "Graphique Circulaire"
+      },
+      "dateRange": "Période",
+      "yearRange": "Plage d'Années",
+      "regions": "Régions",
+      "selectRegions": "Sélectionner des régions",
+      "allRegions": "Toutes les régions",
+      "regionSelected": "{count, plural, =1 {région sélectionnée} other {régions sélectionnées}}",
+      "noRegions": "Aucune région",
+      "loading": "Chargement...",
+      "showLegend": "Afficher la Légende",
+      "colorScheme": "Palette de Couleurs",
+      "stacked": "Empilé",
+      "dataAggregation": "Agrégation des Données",
+      "selectAggregation": "Sélectionner l'agrégation",
+      "aggregation": {
+        "none": "Aucune",
+        "sum": "Somme",
+        "avg": "Moyenne",
+        "min": "Minimum",
+        "max": "Maximum"
+      },
+      "curveType": "Type de Courbe",
+      "selectCurveType": "Sélectionner le type de courbe",
+      "curves": {
+        "linear": "Linéaire",
+        "monotone": "Lisse",
+        "step": "Palier"
+      },
+      "hideDots": "Masquer les points",
+      "innerRadius": "Rayon Intérieur",
+      "outerRadius": "Rayon Extérieur",
+      "chartPreview": "Aperçu du Graphique",
+      "selectMetricsToPreview": "Sélectionnez des métriques pour prévisualiser le graphique",
+      "saveToLibrary": "Enregistrer dans la Bibliothèque",
+      "saveChart": "Enregistrer le Graphique",
+      "saveChartToLibrary": "Enregistrer le Graphique dans la Bibliothèque",
+      "saveChartDescription": "Fournissez un nom et une description pour votre graphique afin de l'enregistrer dans votre bibliothèque.",
+      "chartName": "Nom du Graphique",
+      "enterChartName": "Entrez le nom du graphique",
+      "description": "Description",
+      "enterChartDescription": "Entrez la description du graphique",
+      "cancel": "Annuler"
     },
     "library": {
       "title": "Bibliothèque de Graphiques",

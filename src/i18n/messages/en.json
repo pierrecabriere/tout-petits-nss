@@ -73,6 +73,10 @@
     "showAll": "Show all"
   },
   "metrics": {
+    "selected": "{count, plural, =1 {metric selected} other {metrics selected}}",
+    "selectMetrics": "Select metrics",
+    "searchPlaceholder": "Search metrics...",
+    "noResults": "No metrics found",
     "explorer": {
       "title": "Metrics Explorer",
       "description": "Browse and analyze available metrics",
@@ -110,7 +114,60 @@
       "selectMetrics": "Select Metrics",
       "configureChart": "Configure Chart",
       "preview": "Preview",
-      "save": "Save Chart"
+      "save": "Save Chart",
+      "chartConfiguration": "Chart Configuration & Preview",
+      "configureCustomize": "Configure metrics and customize your chart",
+      "basicSettings": "Basic Settings",
+      "chartOptions": "Chart Options",
+      "chartType": "Chart Type",
+      "selectChartType": "Select chart type",
+      "chartTypes": {
+        "line": "Line Chart",
+        "area": "Area Chart",
+        "bar": "Bar Chart",
+        "pie": "Pie Chart"
+      },
+      "dateRange": "Date Range",
+      "yearRange": "Year Range",
+      "regions": "Regions",
+      "selectRegions": "Select regions",
+      "allRegions": "All regions",
+      "regionSelected": "{count, plural, =1 {region selected} other {regions selected}}",
+      "noRegions": "No regions",
+      "loading": "Loading...",
+      "showLegend": "Show Legend",
+      "colorScheme": "Color Scheme",
+      "stacked": "Stacked",
+      "dataAggregation": "Data Aggregation",
+      "selectAggregation": "Select aggregation",
+      "aggregation": {
+        "none": "None",
+        "sum": "Sum",
+        "avg": "Average",
+        "min": "Minimum",
+        "max": "Maximum"
+      },
+      "curveType": "Curve Type",
+      "selectCurveType": "Select curve type",
+      "curves": {
+        "linear": "Linear",
+        "monotone": "Smooth",
+        "step": "Step"
+      },
+      "hideDots": "Hide dots",
+      "innerRadius": "Inner Radius",
+      "outerRadius": "Outer Radius",
+      "chartPreview": "Chart Preview",
+      "selectMetricsToPreview": "Select metrics to preview chart",
+      "saveToLibrary": "Save to Library",
+      "saveChart": "Save Chart",
+      "saveChartToLibrary": "Save Chart to Library",
+      "saveChartDescription": "Provide a name and description for your chart to save it to your library.",
+      "chartName": "Chart Name",
+      "enterChartName": "Enter chart name",
+      "description": "Description",
+      "enterChartDescription": "Enter chart description",
+      "cancel": "Cancel"
     },
     "library": {
       "title": "Charts Library",

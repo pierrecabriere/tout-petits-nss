@@ -47,18 +47,19 @@ export default function LibraryPage() {
   const { data: charts, isLoading } = useQuery({
     queryKey: ['charts'],
     queryFn: async () => {
-      const { data, error } = await supabaseClient
-        .from('charts')
-        .select('*, chart_metrics(metric_id)');
+      const { data, error } = await supabaseClient.from('charts').select('*');
 
       if (error) throw error;
 
       // Transform data to include metrics array and parse config
-      return data.map(chart => ({
-        ...chart,
-        metrics: chart.chart_metrics.map((cm: any) => cm.metric_id),
-        config: typeof chart.config === 'string' ? JSON.parse(chart.config) : chart.config,
-      })) as ChartWithMetrics[];
+      return data.map(chart => {
+        const config = typeof chart.config === 'string' ? JSON.parse(chart.config) : chart.config;
+        return {
+          ...chart,
+          metrics: config.metrics || [],
+          config,
+        };
+      }) as ChartWithMetrics[];
     },
   });
 
@@ -159,6 +160,7 @@ export default function LibraryPage() {
                       showAxisLabels={false}
                       colorScheme={chart.config?.colorScheme || 'default'}
                       aggregation={chart.config?.aggregation || 'none'}
+                      hideDots={true}
                       {...(chart.config?.stacked !== undefined && {
                         stacked: chart.config.stacked,
                       })}

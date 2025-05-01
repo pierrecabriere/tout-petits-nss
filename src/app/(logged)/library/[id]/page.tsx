@@ -97,9 +97,7 @@ export default function ChartDetailPage() {
     to: undefined,
   });
   const [showLegend, setShowLegend] = useState(true);
-  const [stacked, setStacked] = useState(false);
   const [colorScheme, setColorScheme] = useState<'default' | 'pastel' | 'vibrant'>('default');
-  const [aggregation, setAggregation] = useState<'none' | 'sum' | 'avg' | 'min' | 'max'>('none');
   const [curveType, setCurveType] = useState<'linear' | 'monotone' | 'step'>('monotone');
   const [innerRadius, setInnerRadius] = useState<number>(0);
   const [outerRadius, setOuterRadius] = useState<number>(80);
@@ -117,18 +115,14 @@ export default function ChartDetailPage() {
 
       if (error) throw error;
 
-      // Get associated metrics
-      const { data: chartMetrics, error: metricsError } = await supabaseClient
-        .from('chart_metrics')
-        .select('metric_id')
-        .eq('chart_id', chartId);
-
-      if (metricsError) throw metricsError;
+      // Parse the config and extract metrics
+      const config = typeof chart.config === 'string' ? JSON.parse(chart.config) : chart.config;
 
       // Return combined data
       return {
         ...chart,
-        metrics: chartMetrics.map(cm => cm.metric_id),
+        metrics: config.metrics || [],
+        config,
       } as ChartWithMetrics;
     },
   });
@@ -141,24 +135,22 @@ export default function ChartDetailPage() {
         .from('charts')
         .update({
           name: chartName,
-          chart_type: chartType,
+          description: chartDescription,
           config: {
             title: chartName,
             description: chartDescription,
             type: chartType,
+            metrics: chartData?.metrics || [],
             dateRange: {
               from: dateRange.from?.toISOString(),
               to: dateRange.to?.toISOString(),
             },
             showLegend,
-            stacked,
             colorScheme,
-            aggregation,
             curveType: chartType === 'line' ? curveType : undefined,
             innerRadius: chartType === 'pie' ? innerRadius : undefined,
             outerRadius: chartType === 'pie' ? outerRadius : undefined,
           },
-          updated_at: new Date().toISOString(),
         })
         .eq('id', chartId);
 
@@ -201,9 +193,7 @@ export default function ChartDetailPage() {
         to: chartConfig?.dateRange?.to ? new Date(chartConfig.dateRange.to) : undefined,
       });
       setShowLegend(chartConfig?.showLegend ?? true);
-      setStacked(chartConfig?.stacked ?? false);
       setColorScheme(chartConfig?.colorScheme || 'default');
-      setAggregation(chartConfig?.aggregation || 'none');
       setCurveType(chartConfig?.curveType || 'monotone');
       setInnerRadius(chartConfig?.innerRadius ?? 0);
       setOuterRadius(chartConfig?.outerRadius ?? 80);
@@ -224,9 +214,7 @@ export default function ChartDetailPage() {
         to: dateRange.to,
       },
       showLegend,
-      stacked,
       colorScheme,
-      aggregation,
       curveType: chartType === 'line' ? curveType : undefined,
       innerRadius: chartType === 'pie' ? innerRadius : undefined,
       outerRadius: chartType === 'pie' ? outerRadius : undefined,
@@ -278,29 +266,29 @@ export default function ChartDetailPage() {
                         rows={3}
                       />
                     </div>
-
-                    {/* Chart Type Selection */}
-                    <div className="space-y-2">
-                      <Label htmlFor="chartType">Chart Type</Label>
-                      <Select
-                        value={chartType}
-                        onValueChange={(value: string) => setChartType(value as any)}
-                      >
-                        <SelectTrigger id="chartType">
-                          <SelectValue placeholder="Select chart type" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="line">Line Chart</SelectItem>
-                          <SelectItem value="area">Area Chart</SelectItem>
-                          <SelectItem value="bar">Bar Chart</SelectItem>
-                          <SelectItem value="pie">Pie Chart</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
                   </TabsContent>
 
                   <TabsContent value="options" className="space-y-4 pt-4">
                     <div className="space-y-4">
+                      {/* Chart Type Selection */}
+                      <div className="space-y-2">
+                        <Label htmlFor="chartType">Chart Type</Label>
+                        <Select
+                          value={chartType}
+                          onValueChange={(value: string) => setChartType(value as any)}
+                        >
+                          <SelectTrigger id="chartType">
+                            <SelectValue placeholder="Select chart type" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="line">Line Chart</SelectItem>
+                            <SelectItem value="area">Area Chart</SelectItem>
+                            <SelectItem value="bar">Bar Chart</SelectItem>
+                            <SelectItem value="pie">Pie Chart</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+
                       {/* Common options */}
                       <div className="flex items-center justify-between">
                         <Label htmlFor="show-legend">Show Legend</Label>
@@ -329,35 +317,6 @@ export default function ChartDetailPage() {
                           ))}
                         </div>
                       </div>
-
-                      {/* Options specific to bar and line charts */}
-                      {(chartType === 'bar' || chartType === 'line' || chartType === 'area') && (
-                        <>
-                          <div className="flex items-center justify-between">
-                            <Label htmlFor="stacked">Stacked</Label>
-                            <Switch id="stacked" checked={stacked} onCheckedChange={setStacked} />
-                          </div>
-
-                          <div className="space-y-2">
-                            <Label htmlFor="aggregation">Data Aggregation</Label>
-                            <Select
-                              value={aggregation}
-                              onValueChange={(value: string) => setAggregation(value as any)}
-                            >
-                              <SelectTrigger id="aggregation">
-                                <SelectValue placeholder="Select aggregation" />
-                              </SelectTrigger>
-                              <SelectContent>
-                                <SelectItem value="none">None</SelectItem>
-                                <SelectItem value="sum">Sum</SelectItem>
-                                <SelectItem value="avg">Average</SelectItem>
-                                <SelectItem value="min">Minimum</SelectItem>
-                                <SelectItem value="max">Maximum</SelectItem>
-                              </SelectContent>
-                            </Select>
-                          </div>
-                        </>
-                      )}
 
                       {/* Line chart specific options */}
                       {chartType === 'line' && (
@@ -473,12 +432,12 @@ export default function ChartDetailPage() {
                           : undefined,
                     }}
                     showLegend={editOpen ? showLegend : chartConfig?.showLegend || true}
-                    stacked={editOpen ? stacked : chartConfig?.stacked || false}
                     colorScheme={editOpen ? colorScheme : chartConfig?.colorScheme || 'default'}
-                    aggregation={editOpen ? aggregation : chartConfig?.aggregation || 'none'}
                     curveType={editOpen ? curveType : chartConfig?.curveType}
                     innerRadius={editOpen ? innerRadius : chartConfig?.innerRadius}
                     outerRadius={editOpen ? outerRadius : chartConfig?.outerRadius}
+                    aggregation="none"
+                    stacked={false}
                   />
                 )}
               </div>
