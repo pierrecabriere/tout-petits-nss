@@ -52,6 +52,7 @@ import {
   DropdownMenuCheckboxItem,
 } from '@/components/ui/dropdown-menu';
 import { YearRangeSlider } from '@/components/ui/year-range-slider';
+import RenderTable from '@/components/ui/tables/RenderTable';
 
 // Temporary implementations for missing components (remove once you've created the actual components)
 const Textarea = (props: React.TextareaHTMLAttributes<HTMLTextAreaElement>) => (
@@ -92,10 +93,7 @@ export default function ConfiguratorPage() {
 
   // State for chart configuration
   const [chartType, setChartType] = useState<'line' | 'bar' | 'pie' | 'area'>('line');
-  const [yearRange, setYearRange] = useState<[number, number]>([
-    new Date().getFullYear() - 5,
-    new Date().getFullYear(),
-  ]);
+  const [yearRange, setYearRange] = useState<[number, number]>([1980, new Date().getFullYear()]);
 
   // For backwards compatibility with components expecting date objects
   const dateRange = {
@@ -123,6 +121,24 @@ export default function ConfiguratorPage() {
   const [selectedRegions, setSelectedRegions] = useState<string[]>([]);
   const [regions, setRegions] = useState<{ id: string; name: string }[]>([]);
   const [loadingRegions, setLoadingRegions] = useState(true);
+
+  // Sélectionner toutes les régions par défaut dès qu'elles sont chargées
+  useEffect(() => {
+    if (!loadingRegions && regions.length > 0 && selectedRegions.length === 0) {
+      setSelectedRegions(regions.map(r => r.id));
+    }
+  }, [loadingRegions, regions, selectedRegions.length]);
+
+  // Table view options
+  const [tableView, setTableView] = useState({
+    showRowNumbers: true,
+    showFilters: true,
+    pageSize: 10,
+    enableSorting: true,
+    enablePagination: true,
+    density: 'default' as 'default' | 'compact' | 'comfortable',
+    groupBy: 'year-metric' as 'year' | 'metric' | 'year-metric' | 'metric-year',
+  });
 
   // Fetch regions on mount
   useEffect(() => {
@@ -166,6 +182,18 @@ export default function ConfiguratorPage() {
             innerRadius: chartType === 'pie' ? innerRadius : undefined,
             outerRadius: chartType === 'pie' ? outerRadius : undefined,
             hideDots: chartType === 'line' ? hideDots : undefined,
+            tableView:
+              activeTab === 'table'
+                ? {
+                    showRowNumbers: tableView.showRowNumbers,
+                    showFilters: tableView.showFilters,
+                    pageSize: tableView.pageSize,
+                    enableSorting: tableView.enableSorting,
+                    enablePagination: tableView.enablePagination,
+                    density: tableView.density,
+                    groupBy: tableView.groupBy,
+                  }
+                : undefined,
           },
           metadata: null,
         })
@@ -209,7 +237,7 @@ export default function ConfiguratorPage() {
             <TabsList className="grid w-full grid-cols-3">
               <TabsTrigger value="default">{t('metrics.configurator.basicSettings')}</TabsTrigger>
               <TabsTrigger value="options">{t('metrics.configurator.chartOptions')}</TabsTrigger>
-              <TabsTrigger value="preview">{t('metrics.configurator.preview')}</TabsTrigger>
+              <TabsTrigger value="table">{t('metrics.configurator.tableOptions')}</TabsTrigger>
             </TabsList>
 
             <TabsContent value="default" className="space-y-6 pt-4">
@@ -473,37 +501,211 @@ export default function ConfiguratorPage() {
                     </div>
                   </>
                 )}
+
+                {/* Chart Preview */}
+                <div className="mt-8">
+                  <h3 className="mb-2 text-lg font-medium">
+                    {t('metrics.configurator.chartPreview')}
+                  </h3>
+                  <div className="h-[400px] rounded-md border bg-muted/30">
+                    {selectedMetrics.length === 0 ? (
+                      <div className="flex h-full items-center justify-center">
+                        <p className="text-muted-foreground">
+                          {t('metrics.configurator.selectMetricsToPreview')}
+                        </p>
+                      </div>
+                    ) : (
+                      <RenderChart
+                        metricIds={selectedMetrics}
+                        chartType={chartType}
+                        dateRange={dateRange}
+                        showLegend={showLegend}
+                        colorScheme={colorScheme}
+                        curveType={curveType}
+                        innerRadius={innerRadius}
+                        outerRadius={outerRadius}
+                        regionIds={selectedRegions}
+                        hideDots={chartType === 'line' ? hideDots : undefined}
+                        aggregation="none"
+                        stacked={false}
+                      />
+                    )}
+                  </div>
+                </div>
               </div>
             </TabsContent>
 
-            <TabsContent value="preview" className="space-y-4 pt-4">
-              <div>
-                <h3 className="mb-2 text-lg font-medium">
-                  {t('metrics.configurator.chartPreview')}
+            <TabsContent value="table" className="space-y-4 pt-4">
+              <div className="space-y-4">
+                <h3 className="text-lg font-medium">
+                  {t('metrics.configurator.tableOptions') || 'Web Table Options'}
                 </h3>
-                <div className="h-[400px] rounded-md border bg-muted/30">
-                  {selectedMetrics.length === 0 ? (
-                    <div className="flex h-full items-center justify-center">
-                      <p className="text-muted-foreground">
-                        {t('metrics.configurator.selectMetricsToPreview')}
-                      </p>
-                    </div>
-                  ) : (
-                    <RenderChart
-                      metricIds={selectedMetrics}
-                      chartType={chartType}
-                      dateRange={dateRange}
-                      showLegend={showLegend}
-                      colorScheme={colorScheme}
-                      curveType={curveType}
-                      innerRadius={innerRadius}
-                      outerRadius={outerRadius}
-                      regionIds={selectedRegions}
-                      hideDots={chartType === 'line' ? hideDots : undefined}
-                      aggregation="none"
-                      stacked={false}
-                    />
-                  )}
+
+                {/* Table settings */}
+                <div className="flex items-center justify-between">
+                  <Label htmlFor="show-row-numbers">
+                    {t('metrics.configurator.showRowNumbers') || 'Show row numbers'}
+                  </Label>
+                  <Switch
+                    id="show-row-numbers"
+                    checked={tableView.showRowNumbers}
+                    onCheckedChange={checked =>
+                      setTableView(prev => ({ ...prev, showRowNumbers: checked }))
+                    }
+                  />
+                </div>
+
+                <div className="flex items-center justify-between">
+                  <Label htmlFor="show-filters">
+                    {t('metrics.configurator.showFilters') || 'Show filters'}
+                  </Label>
+                  <Switch
+                    id="show-filters"
+                    checked={tableView.showFilters}
+                    onCheckedChange={checked =>
+                      setTableView(prev => ({ ...prev, showFilters: checked }))
+                    }
+                  />
+                </div>
+
+                <div className="flex items-center justify-between">
+                  <Label htmlFor="enable-sorting">
+                    {t('metrics.configurator.enableSorting') || 'Enable sorting'}
+                  </Label>
+                  <Switch
+                    id="enable-sorting"
+                    checked={tableView.enableSorting}
+                    onCheckedChange={checked =>
+                      setTableView(prev => ({ ...prev, enableSorting: checked }))
+                    }
+                  />
+                </div>
+
+                <div className="flex items-center justify-between">
+                  <Label htmlFor="enable-pagination">
+                    {t('metrics.configurator.enablePagination') || 'Enable pagination'}
+                  </Label>
+                  <Switch
+                    id="enable-pagination"
+                    checked={tableView.enablePagination}
+                    onCheckedChange={checked =>
+                      setTableView(prev => ({ ...prev, enablePagination: checked }))
+                    }
+                  />
+                </div>
+
+                {/* Page size selection */}
+                <div className="space-y-2">
+                  <Label htmlFor="page-size">
+                    {t('metrics.configurator.pageSize') || 'Page size'}
+                  </Label>
+                  <Select
+                    value={tableView.pageSize.toString()}
+                    onValueChange={value =>
+                      setTableView(prev => ({ ...prev, pageSize: parseInt(value) }))
+                    }
+                  >
+                    <SelectTrigger id="page-size">
+                      <SelectValue
+                        placeholder={t('metrics.configurator.selectPageSize') || 'Select page size'}
+                      />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="5">5</SelectItem>
+                      <SelectItem value="10">10</SelectItem>
+                      <SelectItem value="25">25</SelectItem>
+                      <SelectItem value="50">50</SelectItem>
+                      <SelectItem value="100">100</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {/* Density selection */}
+                <div className="space-y-2">
+                  <Label htmlFor="density">
+                    {t('metrics.configurator.tableDensity') || 'Table density'}
+                  </Label>
+                  <Select
+                    value={tableView.density}
+                    onValueChange={(value: 'default' | 'compact' | 'comfortable') =>
+                      setTableView(prev => ({ ...prev, density: value }))
+                    }
+                  >
+                    <SelectTrigger id="density">
+                      <SelectValue
+                        placeholder={t('metrics.configurator.selectDensity') || 'Select density'}
+                      />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="compact">
+                        {t('metrics.configurator.densityOptions.compact') || 'Compact'}
+                      </SelectItem>
+                      <SelectItem value="default">
+                        {t('metrics.configurator.densityOptions.default') || 'Default'}
+                      </SelectItem>
+                      <SelectItem value="comfortable">
+                        {t('metrics.configurator.densityOptions.comfortable') || 'Comfortable'}
+                      </SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {/* Group by selection */}
+                <div className="space-y-2">
+                  <Label htmlFor="group-by">
+                    {t('metrics.configurator.groupBy') || 'Group by'}
+                  </Label>
+                  <Select
+                    value={tableView.groupBy}
+                    onValueChange={(value: 'year' | 'metric' | 'year-metric' | 'metric-year') =>
+                      setTableView(prev => ({ ...prev, groupBy: value }))
+                    }
+                  >
+                    <SelectTrigger id="group-by">
+                      <SelectValue
+                        placeholder={t('metrics.configurator.selectGroupBy') || 'Select grouping'}
+                      />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="year">
+                        {t('metrics.configurator.groupByOptions.year') || 'Year'}
+                      </SelectItem>
+                      <SelectItem value="metric">
+                        {t('metrics.configurator.groupByOptions.metric') || 'Metric'}
+                      </SelectItem>
+                      <SelectItem value="year-metric">
+                        {t('metrics.configurator.groupByOptions.yearMetric') || 'Year - Metric'}
+                      </SelectItem>
+                      <SelectItem value="metric-year">
+                        {t('metrics.configurator.groupByOptions.metricYear') || 'Metric - Year'}
+                      </SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {/* Preview of data in table format */}
+                <div className="mt-8">
+                  <h3 className="mb-2 text-lg font-medium">
+                    {t('metrics.configurator.tablePreview') || 'Table Preview'}
+                  </h3>
+                  <div className="h-[400px] overflow-auto rounded-md border bg-muted/30">
+                    {selectedMetrics.length === 0 ? (
+                      <div className="flex h-full items-center justify-center">
+                        <p className="text-muted-foreground">
+                          {t('metrics.configurator.selectMetricsToPreview') ||
+                            'Select metrics to preview data in table format'}
+                        </p>
+                      </div>
+                    ) : (
+                      <RenderTable
+                        metricIds={selectedMetrics}
+                        dateRange={dateRange}
+                        regionIds={selectedRegions}
+                        tableConfig={tableView}
+                        onConfigChange={newConfig => setTableView(newConfig)}
+                      />
+                    )}
+                  </div>
                 </div>
               </div>
             </TabsContent>

@@ -167,7 +167,24 @@
       "chartName": "Chart Name",
       "enterChartName": "Enter chart name",
       "enterChartDescription": "Enter chart description",
-      "cancel": "Cancel"
+      "cancel": "Cancel",
+      "tableOptions": "Table Options",
+      "showRowNumbers": "Show row numbers",
+      "showFilters": "Show filters",
+      "enableSorting": "Enable sorting",
+      "enablePagination": "Enable pagination",
+      "pageSize": "Page size",
+      "selectPageSize": "Select page size",
+      "tableDensity": "Table density",
+      "selectDensity": "Select density",
+      "densityOptions": {
+        "compact": "Compact",
+        "default": "Default",
+        "comfortable": "Comfortable"
+      },
+      "tablePreview": "Table Preview",
+      "tablePreviewPlaceholder": "Table preview will be implemented here",
+      "description": "Description"
     },
     "library": {
       "title": "Charts Library",

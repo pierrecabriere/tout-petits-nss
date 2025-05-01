@@ -1,0 +1,780 @@
+import { useEffect, useState, useMemo } from 'react';
+import { useQuery } from '@tanstack/react-query';
+import supabaseClient from '@/lib/supabase-client';
+import { Tables } from '@/types/database';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
+import { Skeleton } from '@/components/ui/skeleton';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import { ChevronDown, ChevronUp, FilterX, ArrowUpDown } from 'lucide-react';
+import {
+  ColumnDef,
+  flexRender,
+  getCoreRowModel,
+  getSortedRowModel,
+  getPaginationRowModel,
+  useReactTable,
+  SortingState,
+} from '@tanstack/react-table';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+
+// For handling metric unit type compatibility
+type MetricUnit = string | null;
+
+// Type for table data structure
+type TableDataPoint = {
+  id: string;
+  timestamp: string;
+  formattedDate: string;
+  region?: string;
+  regionId?: string;
+  year: string;
+  metric: string;
+  value: string;
+  unit: string;
+  [key: string]: string | number | undefined;
+};
+
+// Type for the grouped table data
+type GroupedTableData = {
+  id: string;
+  region: string;
+  [key: string]: string | number | undefined;
+};
+
+// Type for grouping options
+type GroupByOption = 'year' | 'metric' | 'year-metric' | 'metric-year';
+
+// Type for table configuration
+type TableViewConfig = {
+  showRowNumbers: boolean;
+  showFilters: boolean;
+  pageSize: number;
+  enableSorting: boolean;
+  enablePagination: boolean;
+  density: 'compact' | 'default' | 'comfortable';
+  groupBy: GroupByOption;
+};
+
+// Base table configuration
+type RenderTableProps = {
+  metricIds: string[];
+  dateRange: {
+    from: Date | undefined;
+    to: Date | undefined;
+  };
+  regionIds?: string[];
+  tableConfig: TableViewConfig;
+  onConfigChange?: (config: TableViewConfig) => void;
+};
+
+export default function RenderTable({
+  metricIds,
+  dateRange,
+  regionIds,
+  tableConfig,
+  onConfigChange,
+}: RenderTableProps) {
+  // Loading state
+  const [isLoading, setIsLoading] = useState(true);
+  // Table data state
+  const [tableData, setTableData] = useState<TableDataPoint[]>([]);
+  // Sorting state
+  const [sorting, setSorting] = useState<SortingState>([]);
+  // Group by state
+  const [groupBy, setGroupBy] = useState<GroupByOption>(tableConfig.groupBy || 'year-metric');
+
+  // Update configuration when groupBy changes
+  useEffect(() => {
+    if (groupBy !== tableConfig.groupBy && onConfigChange) {
+      onConfigChange({
+        ...tableConfig,
+        groupBy,
+      });
+    }
+  }, [groupBy, tableConfig, onConfigChange]);
+
+  // Get class based on density setting
+  const getDensityClass = () => {
+    switch (tableConfig.density) {
+      case 'compact':
+        return 'py-1 px-3';
+      case 'comfortable':
+        return 'py-4 px-4';
+      default:
+        return 'py-2 px-3';
+    }
+  };
+
+  // Fetch metric data
+  useEffect(() => {
+    let isMounted = true;
+
+    const fetchData = async () => {
+      if (!metricIds.length || !dateRange.from || !dateRange.to) {
+        setIsLoading(false);
+        return;
+      }
+
+      if (regionIds && regionIds.length === 0) {
+        setIsLoading(false);
+        return;
+      }
+
+      try {
+        // First get metric info
+        const metricsResponse = await supabaseClient
+          .from('metrics')
+          .select('id, name, unit')
+          .in('id', metricIds);
+
+        if (metricsResponse.error) throw metricsResponse.error;
+
+        const metrics = metricsResponse.data;
+        const metricNames: Record<string, string> = {};
+        const metricUnits: Record<string, string> = {};
+
+        metrics.forEach(metric => {
+          metricNames[metric.id] = metric.name;
+          metricUnits[metric.id] = metric.unit || '';
+        });
+
+        // Get region names if needed
+        let regionNames: Record<string, string> = {};
+
+        if (regionIds && regionIds.length > 0) {
+          const regionsResponse = await supabaseClient
+            .from('regions')
+            .select('id, name')
+            .in('id', regionIds);
+
+          if (regionsResponse.error) throw regionsResponse.error;
+
+          regionsResponse.data.forEach(region => {
+            regionNames[region.id] = region.name;
+          });
+        }
+
+        // Fetch data points
+        const fromDate = dateRange.from.toISOString().split('T')[0];
+        const toDate = dateRange.to.toISOString().split('T')[0];
+
+        const dataPromises = metricIds.map(metricId => {
+          let query = supabaseClient
+            .from('metric_data')
+            .select('*')
+            .eq('metric_id', metricId)
+            .gte('date', fromDate)
+            .lte('date', toDate)
+            .order('date', { ascending: true });
+
+          if (regionIds && regionIds.length > 0) {
+            query = query.in('region_id', regionIds);
+          }
+
+          return query;
+        });
+
+        const results = await Promise.all(dataPromises);
+
+        // Process data into table format
+        const tableRows: TableDataPoint[] = [];
+
+        results.forEach((result, index) => {
+          const metricId = metricIds[index];
+
+          result.data?.forEach(point => {
+            const date = new Date(point.date);
+            const year = date.getFullYear().toString();
+
+            tableRows.push({
+              id: `${metricId}-${point.date}-${point.region_id || 'global'}`,
+              year,
+              metric: metricNames[metricId],
+              value: Number(point.value).toLocaleString(),
+              unit: metricUnits[metricId],
+              region: point.region_id ? regionNames[point.region_id] || point.region_id : 'Global',
+              timestamp: point.date,
+              formattedDate: point.date,
+              regionId: point.region_id || undefined,
+            });
+          });
+        });
+
+        if (isMounted) {
+          setTableData(tableRows);
+          setIsLoading(false);
+        }
+      } catch (error) {
+        console.error('Error fetching table data:', error);
+        if (isMounted) {
+          setIsLoading(false);
+        }
+      }
+    };
+
+    setIsLoading(true);
+    fetchData();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [metricIds, dateRange, regionIds]);
+
+  // Group data based on the selected grouping option
+  const groupedData = useMemo(() => {
+    if (tableData.length === 0)
+      return {
+        data: [],
+        groupKeys: [],
+        groupKeyToColumn: {},
+        yearMetricStructure: { years: [], metricsByYear: {} },
+        metricYearStructure: { metrics: [], yearsByMetric: {} },
+      };
+
+    const grouped: GroupedTableData[] = [];
+    const regions = new Set<string>();
+    const groupKeys = new Set<string>();
+    const groupKeyToColumn: Record<string, { year?: string; metric?: string }> = {};
+
+    // For year-metric and metric-year hierarchical structures
+    const years = new Set<string>();
+    const metrics = new Set<string>();
+    const metricsByYear: Record<string, string[]> = {};
+    const yearsByMetric: Record<string, string[]> = {};
+
+    // Get unique regions, years, and metrics
+    tableData.forEach(data => {
+      if (data.region) {
+        regions.add(data.region);
+      }
+
+      if (data.year) {
+        years.add(data.year);
+      }
+
+      if (data.metric) {
+        metrics.add(data.metric);
+      }
+    });
+
+    // For year-metric group, organize metrics by year
+    if (groupBy === 'year-metric') {
+      Array.from(years).forEach(year => {
+        metricsByYear[year] = [];
+      });
+
+      tableData.forEach(data => {
+        if (data.year && data.metric && !metricsByYear[data.year].includes(data.metric)) {
+          metricsByYear[data.year].push(data.metric);
+        }
+      });
+    }
+
+    // For metric-year group, organize years by metric
+    if (groupBy === 'metric-year') {
+      Array.from(metrics).forEach(metric => {
+        yearsByMetric[metric] = [];
+      });
+
+      tableData.forEach(data => {
+        if (data.year && data.metric && !yearsByMetric[data.metric].includes(data.year)) {
+          yearsByMetric[data.metric].push(data.year);
+        }
+      });
+    }
+
+    // Generate group keys based on groupBy option
+    tableData.forEach(data => {
+      let groupKey: string;
+
+      switch (groupBy) {
+        case 'year':
+          groupKey = data.year;
+          groupKeyToColumn[groupKey] = { year: data.year };
+          break;
+        case 'metric':
+          groupKey = data.metric;
+          groupKeyToColumn[groupKey] = { metric: data.metric };
+          break;
+        case 'year-metric':
+          groupKey = `${data.year} - ${data.metric}`;
+          groupKeyToColumn[groupKey] = { year: data.year, metric: data.metric };
+          break;
+        case 'metric-year':
+          groupKey = `${data.metric} - ${data.year}`;
+          groupKeyToColumn[groupKey] = { metric: data.metric, year: data.year };
+          break;
+        default:
+          groupKey = `${data.year} - ${data.metric}`;
+          groupKeyToColumn[groupKey] = { year: data.year, metric: data.metric };
+      }
+
+      groupKeys.add(groupKey);
+    });
+
+    // Create a row for each region
+    for (const region of regions) {
+      const row: GroupedTableData = {
+        id: region,
+        region,
+      };
+
+      // Initialize all group keys with empty values
+      for (const groupKey of groupKeys) {
+        row[groupKey] = '';
+      }
+
+      // Fill in values for this region
+      tableData.forEach(data => {
+        if (data.region === region) {
+          let groupKey: string;
+
+          switch (groupBy) {
+            case 'year':
+              groupKey = data.year;
+              break;
+            case 'metric':
+              groupKey = data.metric;
+              break;
+            case 'year-metric':
+              groupKey = `${data.year} - ${data.metric}`;
+              break;
+            case 'metric-year':
+              groupKey = `${data.metric} - ${data.year}`;
+              break;
+            default:
+              groupKey = `${data.year} - ${data.metric}`;
+          }
+
+          row[groupKey] = `${data.value} ${data.unit}`;
+        }
+      });
+
+      grouped.push(row);
+    }
+
+    return {
+      data: grouped,
+      groupKeys: Array.from(groupKeys),
+      groupKeyToColumn,
+      yearMetricStructure: {
+        years: Array.from(years),
+        metricsByYear,
+      },
+      metricYearStructure: {
+        metrics: Array.from(metrics),
+        yearsByMetric,
+      },
+    };
+  }, [tableData, groupBy]);
+
+  // Define columns for TanStack Table
+  const columns = useMemo<ColumnDef<GroupedTableData>[]>(() => {
+    if (!groupedData.groupKeys || groupedData.groupKeys.length === 0) return [];
+
+    const cols: ColumnDef<GroupedTableData>[] = [];
+
+    // Add row numbers column if configured
+    if (tableConfig.showRowNumbers) {
+      cols.push({
+        id: 'index',
+        header: '#',
+        cell: ({ row }) => <div>{row.index + 1}</div>,
+        meta: {
+          isRowHeader: false,
+        },
+      });
+    }
+
+    // Add region column
+    cols.push({
+      accessorKey: 'region',
+      header: ({ column }) => {
+        if (tableConfig.enableSorting) {
+          return (
+            <Button
+              variant="ghost"
+              className="-ml-4"
+              onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}
+            >
+              Region
+              {column.getIsSorted() === 'asc' && <ChevronUp className="ml-2 h-4 w-4" />}
+              {column.getIsSorted() === 'desc' && <ChevronDown className="ml-2 h-4 w-4" />}
+              {!column.getIsSorted() && <ArrowUpDown className="ml-2 h-4 w-4" />}
+            </Button>
+          );
+        }
+        return 'Region';
+      },
+      cell: ({ row }) => <div className="font-medium">{row.getValue('region')}</div>,
+      meta: {
+        isRowHeader: true,
+        isSticky: true,
+      },
+    });
+
+    // Add columns based on group keys
+    if (groupBy === 'year-metric') {
+      // For year-metric, we create hierarchical headers
+      const { years, metricsByYear } = groupedData.yearMetricStructure;
+
+      years.forEach(year => {
+        const metrics = metricsByYear[year] || [];
+
+        // For each metric in this year, create a column
+        metrics.forEach(metric => {
+          const groupKey = `${year} - ${metric}`;
+
+          cols.push({
+            id: groupKey,
+            accessorKey: groupKey,
+            header: metric,
+            meta: {
+              year,
+              metric,
+            },
+          });
+        });
+      });
+    } else if (groupBy === 'metric-year') {
+      // For metric-year, we create hierarchical headers
+      const { metrics, yearsByMetric } = groupedData.metricYearStructure;
+
+      metrics.forEach(metric => {
+        const years = yearsByMetric[metric] || [];
+
+        // For each year for this metric, create a column
+        years.forEach(year => {
+          const groupKey = `${metric} - ${year}`;
+
+          cols.push({
+            id: groupKey,
+            accessorKey: groupKey,
+            header: year,
+            meta: {
+              year,
+              metric,
+            },
+          });
+        });
+      });
+    } else {
+      // Normal columns for other grouping options
+      groupedData.groupKeys.forEach((groupKey: string) => {
+        const columnInfo = groupedData.groupKeyToColumn[groupKey] || {};
+
+        let headerLabel = groupKey;
+        if (columnInfo.year) {
+          headerLabel = columnInfo.year;
+        } else if (columnInfo.metric) {
+          headerLabel = columnInfo.metric;
+        }
+
+        cols.push({
+          id: groupKey,
+          accessorKey: groupKey,
+          header: ({ column }) => {
+            if (tableConfig.enableSorting) {
+              return (
+                <Button
+                  variant="ghost"
+                  className="-ml-4"
+                  onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}
+                >
+                  {headerLabel}
+                  {column.getIsSorted() === 'asc' && <ChevronUp className="ml-2 h-4 w-4" />}
+                  {column.getIsSorted() === 'desc' && <ChevronDown className="ml-2 h-4 w-4" />}
+                  {!column.getIsSorted() && <ArrowUpDown className="ml-2 h-4 w-4" />}
+                </Button>
+              );
+            }
+            return headerLabel;
+          },
+        });
+      });
+    }
+
+    return cols;
+  }, [groupedData, tableConfig.showRowNumbers, tableConfig.enableSorting, groupBy]);
+
+  // Create header groups for hierarchical grouping
+  const headerGroups = useMemo(() => {
+    const groups: { id: string; title: string; colSpan: number }[] = [];
+
+    // First add a placeholder for region column and row numbers if present
+    let initialColSpan = 1; // Region column
+    if (tableConfig.showRowNumbers) {
+      initialColSpan = 2; // Row numbers + Region
+    }
+
+    if (initialColSpan > 0) {
+      groups.push({
+        id: 'region-group',
+        title: '',
+        colSpan: initialColSpan,
+      });
+    }
+
+    if (groupBy === 'year-metric') {
+      // Add a group for each year
+      const { years, metricsByYear } = groupedData.yearMetricStructure;
+      years.forEach(year => {
+        const metrics = metricsByYear[year] || [];
+        groups.push({
+          id: `year-${year}`,
+          title: year,
+          colSpan: metrics.length,
+        });
+      });
+    } else if (groupBy === 'metric-year') {
+      // Add a group for each metric
+      const { metrics, yearsByMetric } = groupedData.metricYearStructure;
+      metrics.forEach(metric => {
+        const years = yearsByMetric[metric] || [];
+        groups.push({
+          id: `metric-${metric}`,
+          title: metric,
+          colSpan: years.length,
+        });
+      });
+    }
+
+    return groups;
+  }, [
+    groupBy,
+    groupedData.yearMetricStructure,
+    groupedData.metricYearStructure,
+    tableConfig.showRowNumbers,
+  ]);
+
+  // Initialize TanStack Table
+  const table = useReactTable({
+    data: groupedData.data || [],
+    columns,
+    state: {
+      sorting,
+    },
+    onSortingChange: setSorting,
+    getCoreRowModel: getCoreRowModel(),
+    getSortedRowModel: tableConfig.enableSorting ? getSortedRowModel() : undefined,
+    getPaginationRowModel: tableConfig.enablePagination ? getPaginationRowModel() : undefined,
+    manualPagination: false,
+    pageCount:
+      tableConfig.enablePagination && groupedData.data
+        ? Math.ceil(groupedData.data.length / tableConfig.pageSize)
+        : undefined,
+  });
+
+  // Set page size when configuration changes
+  useEffect(() => {
+    if (tableConfig.enablePagination) {
+      table.setPageSize(tableConfig.pageSize);
+    }
+  }, [tableConfig.pageSize, tableConfig.enablePagination, table]);
+
+  // Show loading state
+  if (isLoading) {
+    return (
+      <div className="p-4">
+        <Skeleton className="mb-4 h-8 w-full" />
+        <Skeleton className="mb-2 h-8 w-full" />
+        <Skeleton className="mb-2 h-8 w-full" />
+        <Skeleton className="mb-2 h-8 w-full" />
+        <Skeleton className="mb-2 h-8 w-full" />
+      </div>
+    );
+  }
+
+  // Show empty state if no metrics selected
+  if (metricIds.length === 0) {
+    return (
+      <div className="flex h-64 items-center justify-center">
+        <p className="text-muted-foreground">Please select metrics to display data</p>
+      </div>
+    );
+  }
+
+  // Show empty state if no data
+  if (tableData.length === 0) {
+    return (
+      <div className="flex h-64 items-center justify-center">
+        <p className="text-muted-foreground">
+          No data available for the selected metrics and filters
+        </p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-4 p-4">
+      {/* Group By Selector */}
+      <div className="mb-4 flex items-center justify-between">
+        <div className="flex items-center space-x-2">
+          <span className="text-sm font-medium">Group by:</span>
+          <Select value={groupBy} onValueChange={value => setGroupBy(value as GroupByOption)}>
+            <SelectTrigger className="w-[180px]">
+              <SelectValue placeholder="Select grouping" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="year">Year</SelectItem>
+              <SelectItem value="metric">Metric</SelectItem>
+              <SelectItem value="year-metric">Year - Metric</SelectItem>
+              <SelectItem value="metric-year">Metric - Year</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+      </div>
+
+      {/* Table */}
+      <div className="overflow-x-auto rounded-md border">
+        <Table className="border-collapse">
+          {/* Custom Header for hierarchical grouping */}
+          {((groupBy as string) === 'year-metric' || (groupBy as string) === 'metric-year') &&
+            headerGroups.length > 0 && (
+              <thead className="bg-muted/50 [&_tr]:border-b">
+                <tr className="border-b transition-colors">
+                  {headerGroups.map(group => (
+                    <th
+                      key={group.id}
+                      colSpan={group.colSpan}
+                      className="h-12 border-r px-2 text-center align-middle text-sm font-bold uppercase tracking-wider text-foreground last:border-r-0"
+                    >
+                      {group.title}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+            )}
+
+          {/* Standard Table Header */}
+          <TableHeader className="bg-muted/30">
+            {table.getHeaderGroups().map(headerGroup => (
+              <TableRow key={headerGroup.id}>
+                {headerGroup.headers.map(header => (
+                  <TableHead
+                    key={header.id}
+                    className="h-10 border-r font-semibold last:border-r-0"
+                  >
+                    {header.isPlaceholder
+                      ? null
+                      : flexRender(header.column.columnDef.header, header.getContext())}
+                  </TableHead>
+                ))}
+              </TableRow>
+            ))}
+          </TableHeader>
+          <TableBody>
+            {table.getRowModel().rows.length ? (
+              table.getRowModel().rows.map((row, rowIndex) => (
+                <TableRow
+                  key={row.id}
+                  data-state={row.getIsSelected() && 'selected'}
+                  className={`hover:bg-muted/40 ${rowIndex % 2 === 0 ? 'bg-white' : 'bg-muted/10'}`}
+                >
+                  {row.getVisibleCells().map(cell => {
+                    // Check if this is a header cell
+                    const isRowHeader = (cell.column.columnDef.meta as any)?.isRowHeader;
+                    const isSticky = (cell.column.columnDef.meta as any)?.isSticky;
+                    const isEvenRow = rowIndex % 2 === 0;
+
+                    return (
+                      <TableCell
+                        key={cell.id}
+                        className={` ${getDensityClass()} border-r last:border-r-0 ${isRowHeader ? 'font-medium' : ''} ${
+                          isSticky
+                            ? `sticky left-0 z-10 ${isEvenRow ? 'bg-white' : 'bg-gray-50'} shadow-[1px_0_0_0_#e5e5e5]`
+                            : ''
+                        } `}
+                      >
+                        {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                      </TableCell>
+                    );
+                  })}
+                </TableRow>
+              ))
+            ) : (
+              <TableRow>
+                <TableCell colSpan={columns.length} className="h-24 text-center">
+                  No results.
+                </TableCell>
+              </TableRow>
+            )}
+          </TableBody>
+        </Table>
+      </div>
+
+      {/* Pagination */}
+      {tableConfig.enablePagination && table.getPageCount() > 1 && (
+        <div className="flex items-center justify-center space-x-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => table.previousPage()}
+            disabled={!table.getCanPreviousPage()}
+          >
+            Previous
+          </Button>
+
+          <div className="flex items-center">
+            {Array.from({ length: Math.min(5, table.getPageCount()) }, (_, i) => {
+              // Calculate which page numbers to show
+              let pageNum;
+              if (table.getPageCount() <= 5) {
+                pageNum = i + 1;
+              } else if (table.getState().pagination.pageIndex <= 2) {
+                pageNum = i + 1;
+              } else if (table.getState().pagination.pageIndex >= table.getPageCount() - 3) {
+                pageNum = table.getPageCount() - 4 + i;
+              } else {
+                pageNum = table.getState().pagination.pageIndex - 1 + i;
+              }
+
+              return (
+                <Button
+                  key={i}
+                  variant={
+                    table.getState().pagination.pageIndex === pageNum - 1 ? 'default' : 'outline'
+                  }
+                  size="sm"
+                  className="mx-1 h-8 w-8"
+                  onClick={() => table.setPageIndex(pageNum - 1)}
+                >
+                  {pageNum}
+                </Button>
+              );
+            })}
+          </div>
+
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => table.nextPage()}
+            disabled={!table.getCanNextPage()}
+          >
+            Next
+          </Button>
+        </div>
+      )}
+    </div>
+  );
+}

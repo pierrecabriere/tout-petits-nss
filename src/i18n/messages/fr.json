@@ -168,7 +168,23 @@
       "enterChartName": "Entrez le nom du graphique",
       "description": "Description",
       "enterChartDescription": "Entrez la description du graphique",
-      "cancel": "Annuler"
+      "cancel": "Annuler",
+      "tableOptions": "Options du Tableau",
+      "showRowNumbers": "Afficher les numéros de lignes",
+      "showFilters": "Afficher les filtres",
+      "enableSorting": "Activer le tri",
+      "enablePagination": "Activer la pagination",
+      "pageSize": "Taille de la page",
+      "selectPageSize": "Sélectionner la taille de la page",
+      "tableDensity": "Densité du tableau",
+      "selectDensity": "Sélectionner la densité",
+      "densityOptions": {
+        "compact": "Compact",
+        "default": "Par défaut",
+        "comfortable": "Confortable"
+      },
+      "tablePreview": "Aperçu du Tableau",
+      "tablePreviewPlaceholder": "L'aperçu du tableau sera implémenté ici"
     },
     "library": {
       "title": "Bibliothèque de Graphiques",
