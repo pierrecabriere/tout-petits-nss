@@ -583,13 +583,13 @@ export default function RenderTable({
   // Show loading state
   if (isLoading) {
     return (
-      <div className="p-4">
+      <>
         <Skeleton className="mb-4 h-8 w-full" />
         <Skeleton className="mb-2 h-8 w-full" />
         <Skeleton className="mb-2 h-8 w-full" />
         <Skeleton className="mb-2 h-8 w-full" />
         <Skeleton className="mb-2 h-8 w-full" />
-      </div>
+      </>
     );
   }
 
@@ -614,7 +614,7 @@ export default function RenderTable({
   }
 
   return (
-    <div className="space-y-4 p-4">
+    <>
       {/* Table */}
       <div className="overflow-x-auto rounded-md border">
         <Table className="border-collapse">
@@ -696,7 +696,7 @@ export default function RenderTable({
 
       {/* Pagination */}
       {tableConfig.enablePagination && table.getPageCount() > 1 && (
-        <div className="flex items-center justify-center space-x-2">
+        <div className="mt-4 flex items-center justify-center space-x-2">
           <Button
             variant="outline"
             size="sm"
@@ -746,6 +746,6 @@ export default function RenderTable({
           </Button>
         </div>
       )}
-    </div>
+    </>
   );
 }

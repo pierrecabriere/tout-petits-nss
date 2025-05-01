@@ -40,6 +40,7 @@ import {
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { MetricTreeSelector } from '@/components/ui/metric-tree-selector';
 import { YearRangeSlider } from '@/components/ui/year-range-slider';
+import RenderTable from '@/components/ui/tables/RenderTable';
 
 // Simple switch component
 const Switch = ({
@@ -89,6 +90,9 @@ export default function ChartDetailPage() {
   const [editOpen, setEditOpen] = useState(false);
   const [activeTab, setActiveTab] = useState('default');
 
+  // View state for chart/table toggle
+  const [viewMode, setViewMode] = useState<'chart' | 'table'>('chart');
+
   // State for chart configuration
   const [chartName, setChartName] = useState('');
   const [chartDescription, setChartDescription] = useState('');
@@ -111,6 +115,17 @@ export default function ChartDetailPage() {
   const [outerRadius, setOuterRadius] = useState<number>(80);
   const [stacked, setStacked] = useState<boolean>(false);
   const [hideDots, setHideDots] = useState(false);
+
+  // State for table options
+  const [tableView, setTableView] = useState({
+    showRowNumbers: true,
+    showFilters: true,
+    pageSize: 10,
+    enableSorting: true,
+    enablePagination: true,
+    density: 'default' as 'default' | 'compact' | 'comfortable',
+    groupBy: 'year-metric' as 'year' | 'metric' | 'year-metric' | 'metric-year',
+  });
 
   // State for metric selection
   const [selectedMetrics, setSelectedMetrics] = useState<string[]>([]);
@@ -190,6 +205,15 @@ export default function ChartDetailPage() {
             outerRadius: chartType === 'pie' ? outerRadius : undefined,
             stacked: chartType === 'bar' || chartType === 'area' ? stacked : undefined,
             hideDots: chartType === 'line' ? hideDots : undefined,
+            tableView: {
+              showRowNumbers: tableView.showRowNumbers,
+              showFilters: tableView.showFilters,
+              pageSize: tableView.pageSize,
+              enableSorting: tableView.enableSorting,
+              enablePagination: tableView.enablePagination,
+              density: tableView.density,
+              groupBy: tableView.groupBy,
+            },
           },
         })
         .eq('id', chartId);
@@ -252,6 +276,19 @@ export default function ChartDetailPage() {
       setHideDots(chartConfig?.hideDots ?? false);
       setSelectedMetrics(chartData.metrics || []);
       setSelectedRegions(chartData.regions || []);
+
+      // Initialize table options if available
+      if (chartConfig?.tableView) {
+        setTableView({
+          showRowNumbers: chartConfig.tableView.showRowNumbers ?? true,
+          showFilters: chartConfig.tableView.showFilters ?? true,
+          pageSize: chartConfig.tableView.pageSize ?? 10,
+          enableSorting: chartConfig.tableView.enableSorting ?? true,
+          enablePagination: chartConfig.tableView.enablePagination ?? true,
+          density: chartConfig.tableView.density ?? 'default',
+          groupBy: chartConfig.tableView.groupBy ?? 'year-metric',
+        });
+      }
     }
   }, [chartData, chartConfig]);
 
@@ -261,12 +298,12 @@ export default function ChartDetailPage() {
   };
 
   // Function to copy embed link to clipboard
-  const copyEmbedLink = () => {
-    const embedLink = `${window.location.origin}/embed/chart/${chartId}`;
+  const copyEmbedLink = (type: 'chart' | 'table') => {
+    const embedLink = `${window.location.origin}/embed/${type}/${chartId}`;
     navigator.clipboard.writeText(embedLink).then(() => {
       toast({
         title: 'Link copied',
-        description: 'Embed link has been copied to clipboard',
+        description: `Embed link for ${type} has been copied to clipboard`,
       });
     });
   };
@@ -286,10 +323,6 @@ export default function ChartDetailPage() {
         </Button>
         {chartData && (
           <div className="flex space-x-2">
-            <Button variant="outline" onClick={copyEmbedLink}>
-              <Link className="mr-2 h-4 w-4" />
-              {t('library.detail.copyEmbedLink')}
-            </Button>
             <Popover open={editOpen} onOpenChange={setEditOpen}>
               <PopoverTrigger asChild>
                 <Button variant="outline">
@@ -301,14 +334,14 @@ export default function ChartDetailPage() {
                 <div className="space-y-4">
                   <h3 className="font-medium">{t('library.detail.editChart')}</h3>
 
-                  <Tabs defaultValue="default" onValueChange={setActiveTab} value={activeTab}>
+                  <Tabs defaultValue="global" onValueChange={setActiveTab} value={activeTab}>
                     <TabsList className="grid w-full grid-cols-3">
-                      <TabsTrigger value="default">Basic Settings</TabsTrigger>
-                      <TabsTrigger value="data">Data Selection</TabsTrigger>
-                      <TabsTrigger value="options">Chart Options</TabsTrigger>
+                      <TabsTrigger value="global">Global Settings</TabsTrigger>
+                      <TabsTrigger value="chart">Chart Options</TabsTrigger>
+                      <TabsTrigger value="table">Table Options</TabsTrigger>
                     </TabsList>
 
-                    <TabsContent value="default" className="space-y-4 pt-4">
+                    <TabsContent value="global" className="space-y-4 pt-4">
                       <div className="space-y-2">
                         <Label htmlFor="chart-name">Chart Name</Label>
                         <Input
@@ -328,9 +361,7 @@ export default function ChartDetailPage() {
                           rows={3}
                         />
                       </div>
-                    </TabsContent>
 
-                    <TabsContent value="data" className="space-y-6 pt-4">
                       {/* Metrics selection using the MetricTreeSelector component */}
                       <MetricTreeSelector
                         selectedMetrics={selectedMetrics}
@@ -420,7 +451,7 @@ export default function ChartDetailPage() {
                       </div>
                     </TabsContent>
 
-                    <TabsContent value="options" className="space-y-4 pt-4">
+                    <TabsContent value="chart" className="space-y-4 pt-4">
                       <div className="space-y-4">
                         {/* Chart Type Selection */}
                         <div className="space-y-2">
@@ -539,6 +570,165 @@ export default function ChartDetailPage() {
                         )}
                       </div>
                     </TabsContent>
+
+                    <TabsContent value="table" className="space-y-4 pt-4">
+                      <div className="space-y-4">
+                        <h3 className="text-lg font-medium">
+                          {t('metrics.configurator.tableOptions') || 'Table Options'}
+                        </h3>
+
+                        {/* Table settings */}
+                        <div className="flex items-center justify-between">
+                          <Label htmlFor="show-row-numbers">
+                            {t('metrics.configurator.showRowNumbers') || 'Show row numbers'}
+                          </Label>
+                          <Switch
+                            id="show-row-numbers"
+                            checked={tableView.showRowNumbers}
+                            onCheckedChange={checked =>
+                              setTableView(prev => ({ ...prev, showRowNumbers: checked }))
+                            }
+                          />
+                        </div>
+
+                        <div className="flex items-center justify-between">
+                          <Label htmlFor="show-filters">
+                            {t('metrics.configurator.showFilters') || 'Show filters'}
+                          </Label>
+                          <Switch
+                            id="show-filters"
+                            checked={tableView.showFilters}
+                            onCheckedChange={checked =>
+                              setTableView(prev => ({ ...prev, showFilters: checked }))
+                            }
+                          />
+                        </div>
+
+                        <div className="flex items-center justify-between">
+                          <Label htmlFor="enable-sorting">
+                            {t('metrics.configurator.enableSorting') || 'Enable sorting'}
+                          </Label>
+                          <Switch
+                            id="enable-sorting"
+                            checked={tableView.enableSorting}
+                            onCheckedChange={checked =>
+                              setTableView(prev => ({ ...prev, enableSorting: checked }))
+                            }
+                          />
+                        </div>
+
+                        <div className="flex items-center justify-between">
+                          <Label htmlFor="enable-pagination">
+                            {t('metrics.configurator.enablePagination') || 'Enable pagination'}
+                          </Label>
+                          <Switch
+                            id="enable-pagination"
+                            checked={tableView.enablePagination}
+                            onCheckedChange={checked =>
+                              setTableView(prev => ({ ...prev, enablePagination: checked }))
+                            }
+                          />
+                        </div>
+
+                        {/* Page size selection */}
+                        <div className="space-y-2">
+                          <Label htmlFor="page-size">
+                            {t('metrics.configurator.pageSize') || 'Page size'}
+                          </Label>
+                          <Select
+                            value={tableView.pageSize.toString()}
+                            onValueChange={value =>
+                              setTableView(prev => ({ ...prev, pageSize: parseInt(value) }))
+                            }
+                          >
+                            <SelectTrigger id="page-size">
+                              <SelectValue
+                                placeholder={
+                                  t('metrics.configurator.selectPageSize') || 'Select page size'
+                                }
+                              />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="5">5</SelectItem>
+                              <SelectItem value="10">10</SelectItem>
+                              <SelectItem value="25">25</SelectItem>
+                              <SelectItem value="50">50</SelectItem>
+                              <SelectItem value="100">100</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+
+                        {/* Density selection */}
+                        <div className="space-y-2">
+                          <Label htmlFor="density">
+                            {t('metrics.configurator.tableDensity') || 'Table density'}
+                          </Label>
+                          <Select
+                            value={tableView.density}
+                            onValueChange={(value: 'default' | 'compact' | 'comfortable') =>
+                              setTableView(prev => ({ ...prev, density: value }))
+                            }
+                          >
+                            <SelectTrigger id="density">
+                              <SelectValue
+                                placeholder={
+                                  t('metrics.configurator.selectDensity') || 'Select density'
+                                }
+                              />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="compact">
+                                {t('metrics.configurator.densityOptions.compact') || 'Compact'}
+                              </SelectItem>
+                              <SelectItem value="default">
+                                {t('metrics.configurator.densityOptions.default') || 'Default'}
+                              </SelectItem>
+                              <SelectItem value="comfortable">
+                                {t('metrics.configurator.densityOptions.comfortable') ||
+                                  'Comfortable'}
+                              </SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+
+                        {/* Group by selection */}
+                        <div className="space-y-2">
+                          <Label htmlFor="group-by">
+                            {t('metrics.configurator.groupBy') || 'Group by'}
+                          </Label>
+                          <Select
+                            value={tableView.groupBy}
+                            onValueChange={(
+                              value: 'year' | 'metric' | 'year-metric' | 'metric-year'
+                            ) => setTableView(prev => ({ ...prev, groupBy: value }))}
+                          >
+                            <SelectTrigger id="group-by">
+                              <SelectValue
+                                placeholder={
+                                  t('metrics.configurator.selectGroupBy') || 'Select grouping'
+                                }
+                              />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="year">
+                                {t('metrics.configurator.groupByOptions.year') || 'Year'}
+                              </SelectItem>
+                              <SelectItem value="metric">
+                                {t('metrics.configurator.groupByOptions.metric') || 'Metric'}
+                              </SelectItem>
+                              <SelectItem value="year-metric">
+                                {t('metrics.configurator.groupByOptions.yearMetric') ||
+                                  'Year - Metric'}
+                              </SelectItem>
+                              <SelectItem value="metric-year">
+                                {t('metrics.configurator.groupByOptions.metricYear') ||
+                                  'Metric - Year'}
+                              </SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      </div>
+                    </TabsContent>
                   </Tabs>
 
                   <div className="flex justify-end gap-2 pt-2">
@@ -575,16 +765,22 @@ export default function ChartDetailPage() {
             )}
           </div>
 
-          <Card>
-            <CardHeader>
-              <CardTitle>{editOpen ? chartName : chartData.name}</CardTitle>
-              {(editOpen ? chartDescription : chartConfig?.description) && (
-                <CardDescription>
-                  {editOpen ? chartDescription : chartConfig.description}
-                </CardDescription>
-              )}
-            </CardHeader>
-            <CardContent>
+          <Tabs
+            defaultValue="chart"
+            onValueChange={value => setViewMode(value as 'chart' | 'table')}
+          >
+            <TabsList className="mb-4">
+              <TabsTrigger value="chart">Chart</TabsTrigger>
+              <TabsTrigger value="table">Table</TabsTrigger>
+            </TabsList>
+
+            <TabsContent value="chart">
+              <div className="mb-4 flex justify-end">
+                <Button variant="outline" onClick={() => copyEmbedLink('chart')}>
+                  <Link className="mr-2 h-4 w-4" />
+                  {t('library.detail.copyEmbedLink')}
+                </Button>
+              </div>
               <div className="h-80">
                 {selectedMetrics.length > 0 ? (
                   <RenderChart
@@ -620,8 +816,55 @@ export default function ChartDetailPage() {
                   </div>
                 )}
               </div>
-            </CardContent>
-          </Card>
+            </TabsContent>
+
+            <TabsContent value="table">
+              <div className="mb-4 flex justify-end">
+                <Button variant="outline" onClick={() => copyEmbedLink('table')}>
+                  <Link className="mr-2 h-4 w-4" />
+                  {t('library.detail.copyEmbedLink')}
+                </Button>
+              </div>
+              {selectedMetrics.length > 0 ? (
+                <RenderTable
+                  metricIds={editOpen ? selectedMetrics : chartData.metrics}
+                  dateRange={
+                    editOpen
+                      ? previewDateRange
+                      : {
+                          from: chartConfig?.dateRange?.from
+                            ? new Date(chartConfig.dateRange.from)
+                            : undefined,
+                          to: chartConfig?.dateRange?.to
+                            ? new Date(chartConfig.dateRange.to)
+                            : undefined,
+                        }
+                  }
+                  regionIds={editOpen ? selectedRegions : chartData.regions}
+                  tableConfig={
+                    editOpen
+                      ? tableView
+                      : chartConfig?.tableView || {
+                          showRowNumbers: true,
+                          showFilters: true,
+                          pageSize: 10,
+                          enableSorting: true,
+                          enablePagination: true,
+                          density: 'default',
+                          groupBy: 'year-metric',
+                        }
+                  }
+                  onConfigChange={newConfig => setTableView(newConfig)}
+                />
+              ) : (
+                <div className="flex h-full items-center justify-center">
+                  <p className="text-muted-foreground">
+                    {t('metrics.configurator.selectMetricsToPreview')}
+                  </p>
+                </div>
+              )}
+            </TabsContent>
+          </Tabs>
         </div>
       ) : (
         <div className="flex h-96 items-center justify-center">
