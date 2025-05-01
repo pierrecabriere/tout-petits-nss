@@ -35,8 +35,11 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
   DropdownMenuSeparator,
+  DropdownMenuCheckboxItem,
 } from '@/components/ui/dropdown-menu';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { MetricTreeSelector } from '@/components/ui/metric-tree-selector';
+import { YearRangeSlider } from '@/components/ui/year-range-slider';
 
 // Simple switch component
 const Switch = ({
@@ -69,6 +72,7 @@ const Textarea = (props: React.TextareaHTMLAttributes<HTMLTextAreaElement>) => (
 
 type ChartWithMetrics = Tables<'charts'> & {
   metrics: string[];
+  regions?: string[];
 };
 
 export default function ChartDetailPage() {
@@ -96,11 +100,42 @@ export default function ChartDetailPage() {
     from: undefined,
     to: undefined,
   });
+  const [yearRange, setYearRange] = useState<[number, number]>([
+    new Date().getFullYear() - 5,
+    new Date().getFullYear(),
+  ]);
   const [showLegend, setShowLegend] = useState(true);
   const [colorScheme, setColorScheme] = useState<'default' | 'pastel' | 'vibrant'>('default');
   const [curveType, setCurveType] = useState<'linear' | 'monotone' | 'step'>('monotone');
   const [innerRadius, setInnerRadius] = useState<number>(0);
   const [outerRadius, setOuterRadius] = useState<number>(80);
+  const [stacked, setStacked] = useState<boolean>(false);
+  const [hideDots, setHideDots] = useState(false);
+
+  // State for metric selection
+  const [selectedMetrics, setSelectedMetrics] = useState<string[]>([]);
+
+  // State for region selection
+  const [selectedRegions, setSelectedRegions] = useState<string[]>([]);
+  const [regions, setRegions] = useState<{ id: string; name: string }[]>([]);
+  const [loadingRegions, setLoadingRegions] = useState(true);
+
+  // Fetch regions on mount
+  useEffect(() => {
+    let isMounted = true;
+    supabaseClient
+      .from('regions')
+      .select('id, name')
+      .then(({ data, error }) => {
+        if (!error && isMounted && data) {
+          setRegions(data);
+        }
+        setLoadingRegions(false);
+      });
+    return () => {
+      isMounted = false;
+    };
+  }, []);
 
   // Fetch chart details and associated metrics
   const { data: chartData, isLoading } = useQuery({
@@ -122,6 +157,7 @@ export default function ChartDetailPage() {
       return {
         ...chart,
         metrics: config.metrics || [],
+        regions: config.regions || [],
         config,
       } as ChartWithMetrics;
     },
@@ -140,16 +176,20 @@ export default function ChartDetailPage() {
             title: chartName,
             description: chartDescription,
             type: chartType,
-            metrics: chartData?.metrics || [],
+            metrics: selectedMetrics,
+            regions: selectedRegions,
             dateRange: {
-              from: dateRange.from?.toISOString(),
-              to: dateRange.to?.toISOString(),
+              from: new Date(yearRange[0], 0, 1).toISOString(), // January 1st of start year
+              to: new Date(yearRange[1], 11, 31).toISOString(), // December 31st of end year
             },
+            yearRange: yearRange,
             showLegend,
             colorScheme,
             curveType: chartType === 'line' ? curveType : undefined,
             innerRadius: chartType === 'pie' ? innerRadius : undefined,
             outerRadius: chartType === 'pie' ? outerRadius : undefined,
+            stacked: chartType === 'bar' || chartType === 'area' ? stacked : undefined,
+            hideDots: chartType === 'line' ? hideDots : undefined,
           },
         })
         .eq('id', chartId);
@@ -188,15 +228,30 @@ export default function ChartDetailPage() {
       setChartName(chartData.name);
       setChartDescription(chartConfig?.description || '');
       setChartType(chartConfig?.type || 'line');
+
+      // Handle year range/date range
+      if (chartConfig?.yearRange) {
+        setYearRange(chartConfig.yearRange);
+      } else if (chartConfig?.dateRange?.from && chartConfig?.dateRange?.to) {
+        const fromDate = new Date(chartConfig.dateRange.from);
+        const toDate = new Date(chartConfig.dateRange.to);
+        setYearRange([fromDate.getFullYear(), toDate.getFullYear()]);
+      }
+
       setDateRange({
         from: chartConfig?.dateRange?.from ? new Date(chartConfig.dateRange.from) : undefined,
         to: chartConfig?.dateRange?.to ? new Date(chartConfig.dateRange.to) : undefined,
       });
+
       setShowLegend(chartConfig?.showLegend ?? true);
       setColorScheme(chartConfig?.colorScheme || 'default');
       setCurveType(chartConfig?.curveType || 'monotone');
       setInnerRadius(chartConfig?.innerRadius ?? 0);
       setOuterRadius(chartConfig?.outerRadius ?? 80);
+      setStacked(chartConfig?.stacked ?? false);
+      setHideDots(chartConfig?.hideDots ?? false);
+      setSelectedMetrics(chartData.metrics || []);
+      setSelectedRegions(chartData.regions || []);
     }
   }, [chartData, chartConfig]);
 
@@ -205,20 +260,10 @@ export default function ChartDetailPage() {
     updateChartMutation.mutate();
   };
 
-  // Fonction pour voir les changements en temps réel
-  const getPreviewConfig = () => {
-    return {
-      type: chartType,
-      dateRange: {
-        from: dateRange.from,
-        to: dateRange.to,
-      },
-      showLegend,
-      colorScheme,
-      curveType: chartType === 'line' ? curveType : undefined,
-      innerRadius: chartType === 'pie' ? innerRadius : undefined,
-      outerRadius: chartType === 'pie' ? outerRadius : undefined,
-    };
+  // For chart preview, convert year range to dateRange
+  const previewDateRange = {
+    from: new Date(yearRange[0], 0, 1), // January 1st of start year
+    to: new Date(yearRange[1], 11, 31), // December 31st of end year
   };
 
   return (
@@ -236,13 +281,14 @@ export default function ChartDetailPage() {
                 {t('library.detail.editChart')}
               </Button>
             </PopoverTrigger>
-            <PopoverContent className="w-[400px] p-4" align="end">
+            <PopoverContent className="w-[600px] p-4" align="end">
               <div className="space-y-4">
                 <h3 className="font-medium">{t('library.detail.editChart')}</h3>
 
                 <Tabs defaultValue="default" onValueChange={setActiveTab} value={activeTab}>
-                  <TabsList className="grid w-full grid-cols-2">
+                  <TabsList className="grid w-full grid-cols-3">
                     <TabsTrigger value="default">Basic Settings</TabsTrigger>
+                    <TabsTrigger value="data">Data Selection</TabsTrigger>
                     <TabsTrigger value="options">Chart Options</TabsTrigger>
                   </TabsList>
 
@@ -268,6 +314,96 @@ export default function ChartDetailPage() {
                     </div>
                   </TabsContent>
 
+                  <TabsContent value="data" className="space-y-6 pt-4">
+                    {/* Metrics selection using the MetricTreeSelector component */}
+                    <MetricTreeSelector
+                      selectedMetrics={selectedMetrics}
+                      onSelectMetrics={setSelectedMetrics}
+                      disableEmptyMetrics={true}
+                    />
+
+                    {/* Date Range Selection */}
+                    <div className="space-y-2">
+                      <Label>{t('metrics.configurator.yearRange')}</Label>
+                      <div className="w-full px-1 py-2">
+                        <YearRangeSlider
+                          minYear={1980}
+                          maxYear={new Date().getFullYear()}
+                          value={yearRange}
+                          onChange={setYearRange}
+                        />
+                      </div>
+                    </div>
+
+                    {/* Region Multi-Select */}
+                    <div className="space-y-2">
+                      <Label>{t('metrics.configurator.regions')}</Label>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="outline" className="w-full justify-between">
+                            {selectedRegions.length === 0
+                              ? t('metrics.configurator.selectRegions')
+                              : selectedRegions.length === regions.length
+                                ? t('metrics.configurator.allRegions')
+                                : `${selectedRegions.length} ${t('metrics.configurator.regionSelected', { count: selectedRegions.length })}`}
+                            <ChevronDown className="h-4 w-4 opacity-50" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent className="max-h-72 w-64 overflow-y-auto">
+                          {loadingRegions ? (
+                            <div className="p-2 text-sm text-muted-foreground">
+                              {t('metrics.configurator.loading')}
+                            </div>
+                          ) : regions.length === 0 ? (
+                            <div className="p-2 text-sm text-muted-foreground">
+                              {t('metrics.configurator.noRegions')}
+                            </div>
+                          ) : (
+                            <>
+                              <DropdownMenuCheckboxItem
+                                key="all-regions"
+                                checked={selectedRegions.length === regions.length}
+                                onCheckedChange={checked => {
+                                  if (checked) {
+                                    setSelectedRegions(regions.map(r => r.id));
+                                  } else {
+                                    setSelectedRegions([]);
+                                  }
+                                }}
+                              >
+                                {t('metrics.configurator.allRegions')}
+                              </DropdownMenuCheckboxItem>
+                              <DropdownMenuSeparator />
+                              {regions.map(region => (
+                                <DropdownMenuCheckboxItem
+                                  key={region.id}
+                                  checked={selectedRegions.includes(region.id)}
+                                  onCheckedChange={checked => {
+                                    setSelectedRegions(prev => {
+                                      let next;
+                                      if (checked) {
+                                        next = [...prev, region.id];
+                                      } else {
+                                        next = prev.filter(id => id !== region.id);
+                                      }
+                                      // Si tout est sélectionné individuellement, activer "Toutes les régions"
+                                      if (next.length === regions.length) {
+                                        return regions.map(r => r.id);
+                                      }
+                                      return next;
+                                    });
+                                  }}
+                                >
+                                  {region.name}
+                                </DropdownMenuCheckboxItem>
+                              ))}
+                            </>
+                          )}
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </div>
+                  </TabsContent>
+
                   <TabsContent value="options" className="space-y-4 pt-4">
                     <div className="space-y-4">
                       {/* Chart Type Selection */}
@@ -288,6 +424,14 @@ export default function ChartDetailPage() {
                           </SelectContent>
                         </Select>
                       </div>
+
+                      {/* Stacked option for bar and area charts */}
+                      {(chartType === 'bar' || chartType === 'area') && (
+                        <div className="flex items-center justify-between">
+                          <Label htmlFor="stacked">Stacked Chart</Label>
+                          <Switch id="stacked" checked={stacked} onCheckedChange={setStacked} />
+                        </div>
+                      )}
 
                       {/* Common options */}
                       <div className="flex items-center justify-between">
@@ -320,22 +464,32 @@ export default function ChartDetailPage() {
 
                       {/* Line chart specific options */}
                       {chartType === 'line' && (
-                        <div className="space-y-2">
-                          <Label htmlFor="curveType">Curve Type</Label>
-                          <Select
-                            value={curveType}
-                            onValueChange={(value: string) => setCurveType(value as any)}
-                          >
-                            <SelectTrigger id="curveType">
-                              <SelectValue placeholder="Select curve type" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="linear">Linear</SelectItem>
-                              <SelectItem value="monotone">Smooth</SelectItem>
-                              <SelectItem value="step">Step</SelectItem>
-                            </SelectContent>
-                          </Select>
-                        </div>
+                        <>
+                          <div className="space-y-2">
+                            <Label htmlFor="curveType">Curve Type</Label>
+                            <Select
+                              value={curveType}
+                              onValueChange={(value: string) => setCurveType(value as any)}
+                            >
+                              <SelectTrigger id="curveType">
+                                <SelectValue placeholder="Select curve type" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="linear">Linear</SelectItem>
+                                <SelectItem value="monotone">Smooth</SelectItem>
+                                <SelectItem value="step">Step</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </div>
+                          <div className="flex items-center justify-between">
+                            <Label htmlFor="hide-dots">Hide dots</Label>
+                            <Switch
+                              id="hide-dots"
+                              checked={hideDots}
+                              onCheckedChange={setHideDots}
+                            />
+                          </div>
+                        </>
                       )}
 
                       {/* Pie chart specific options */}
@@ -415,30 +569,38 @@ export default function ChartDetailPage() {
             </CardHeader>
             <CardContent>
               <div className="h-80">
-                {chartData.metrics.length > 0 && (
+                {selectedMetrics.length > 0 ? (
                   <RenderChart
-                    metricIds={chartData.metrics}
+                    metricIds={editOpen ? selectedMetrics : chartData.metrics}
                     chartType={editOpen ? chartType : chartConfig?.type || 'line'}
-                    dateRange={{
-                      from: editOpen
-                        ? dateRange.from
-                        : chartConfig?.dateRange?.from
-                          ? new Date(chartConfig.dateRange.from)
-                          : undefined,
-                      to: editOpen
-                        ? dateRange.to
-                        : chartConfig?.dateRange?.to
-                          ? new Date(chartConfig.dateRange.to)
-                          : undefined,
-                    }}
+                    dateRange={
+                      editOpen
+                        ? previewDateRange
+                        : {
+                            from: chartConfig?.dateRange?.from
+                              ? new Date(chartConfig.dateRange.from)
+                              : undefined,
+                            to: chartConfig?.dateRange?.to
+                              ? new Date(chartConfig.dateRange.to)
+                              : undefined,
+                          }
+                    }
                     showLegend={editOpen ? showLegend : chartConfig?.showLegend || true}
                     colorScheme={editOpen ? colorScheme : chartConfig?.colorScheme || 'default'}
                     curveType={editOpen ? curveType : chartConfig?.curveType}
                     innerRadius={editOpen ? innerRadius : chartConfig?.innerRadius}
                     outerRadius={editOpen ? outerRadius : chartConfig?.outerRadius}
+                    stacked={editOpen ? stacked : chartConfig?.stacked || false}
+                    regionIds={editOpen ? selectedRegions : chartData.regions}
+                    hideDots={editOpen ? hideDots : chartConfig?.hideDots || false}
                     aggregation="none"
-                    stacked={false}
                   />
+                ) : (
+                  <div className="flex h-full items-center justify-center">
+                    <p className="text-muted-foreground">
+                      {t('metrics.configurator.selectMetricsToPreview')}
+                    </p>
+                  </div>
                 )}
               </div>
             </CardContent>
