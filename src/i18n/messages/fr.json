@@ -184,7 +184,14 @@
         "comfortable": "Confortable"
       },
       "tablePreview": "Aperçu du Tableau",
-      "tablePreviewPlaceholder": "L'aperçu du tableau sera implémenté ici"
+      "tablePreviewPlaceholder": "L'aperçu du tableau sera implémenté ici",
+      "groupBy": "Regrouper par",
+      "groupByOptions": {
+        "year": "Année",
+        "metric": "Métrique",
+        "yearMetric": "Année - Métrique",
+        "metricYear": "Métrique - Année"
+      }
     },
     "library": {
       "title": "Bibliothèque de Graphiques",

@@ -1,7 +1,7 @@
 'use client';
 
 import { useTranslations } from 'next-intl';
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import {
   Card,
@@ -121,13 +121,8 @@ export default function ConfiguratorPage() {
   const [selectedRegions, setSelectedRegions] = useState<string[]>([]);
   const [regions, setRegions] = useState<{ id: string; name: string }[]>([]);
   const [loadingRegions, setLoadingRegions] = useState(true);
-
-  // Sélectionner toutes les régions par défaut dès qu'elles sont chargées
-  useEffect(() => {
-    if (!loadingRegions && regions.length > 0 && selectedRegions.length === 0) {
-      setSelectedRegions(regions.map(r => r.id));
-    }
-  }, [loadingRegions, regions, selectedRegions.length]);
+  // Sélectionner toutes les régions par défaut une seule fois
+  const didSelectDefaultRegions = useRef(false);
 
   // Table view options
   const [tableView, setTableView] = useState({
@@ -156,6 +151,18 @@ export default function ConfiguratorPage() {
       isMounted = false;
     };
   }, []);
+
+  useEffect(() => {
+    if (
+      !loadingRegions &&
+      regions.length > 0 &&
+      selectedRegions.length === 0 &&
+      !didSelectDefaultRegions.current
+    ) {
+      setSelectedRegions(regions.map(r => r.id));
+      didSelectDefaultRegions.current = true;
+    }
+  }, [loadingRegions, regions, selectedRegions.length]);
 
   const handleSaveChart = async () => {
     try {

@@ -100,18 +100,6 @@ export default function RenderTable({
   const [tableData, setTableData] = useState<TableDataPoint[]>([]);
   // Sorting state
   const [sorting, setSorting] = useState<SortingState>([]);
-  // Group by state
-  const [groupBy, setGroupBy] = useState<GroupByOption>(tableConfig.groupBy || 'year-metric');
-
-  // Update configuration when groupBy changes
-  useEffect(() => {
-    if (groupBy !== tableConfig.groupBy && onConfigChange) {
-      onConfigChange({
-        ...tableConfig,
-        groupBy,
-      });
-    }
-  }, [groupBy, tableConfig, onConfigChange]);
 
   // Get class based on density setting
   const getDensityClass = () => {
@@ -278,7 +266,7 @@ export default function RenderTable({
     });
 
     // For year-metric group, organize metrics by year
-    if (groupBy === 'year-metric') {
+    if (tableConfig.groupBy === 'year-metric') {
       Array.from(years).forEach(year => {
         metricsByYear[year] = [];
       });
@@ -291,7 +279,7 @@ export default function RenderTable({
     }
 
     // For metric-year group, organize years by metric
-    if (groupBy === 'metric-year') {
+    if (tableConfig.groupBy === 'metric-year') {
       Array.from(metrics).forEach(metric => {
         yearsByMetric[metric] = [];
       });
@@ -307,7 +295,7 @@ export default function RenderTable({
     tableData.forEach(data => {
       let groupKey: string;
 
-      switch (groupBy) {
+      switch (tableConfig.groupBy) {
         case 'year':
           groupKey = data.year;
           groupKeyToColumn[groupKey] = { year: data.year };
@@ -349,7 +337,7 @@ export default function RenderTable({
         if (data.region === region) {
           let groupKey: string;
 
-          switch (groupBy) {
+          switch (tableConfig.groupBy) {
             case 'year':
               groupKey = data.year;
               break;
@@ -386,7 +374,7 @@ export default function RenderTable({
         yearsByMetric,
       },
     };
-  }, [tableData, groupBy]);
+  }, [tableData, tableConfig.groupBy]);
 
   // Define columns for TanStack Table
   const columns = useMemo<ColumnDef<GroupedTableData>[]>(() => {
@@ -434,7 +422,7 @@ export default function RenderTable({
     });
 
     // Add columns based on group keys
-    if (groupBy === 'year-metric') {
+    if (tableConfig.groupBy === 'year-metric') {
       // For year-metric, we create hierarchical headers
       const { years, metricsByYear } = groupedData.yearMetricStructure;
 
@@ -456,7 +444,7 @@ export default function RenderTable({
           });
         });
       });
-    } else if (groupBy === 'metric-year') {
+    } else if (tableConfig.groupBy === 'metric-year') {
       // For metric-year, we create hierarchical headers
       const { metrics, yearsByMetric } = groupedData.metricYearStructure;
 
@@ -515,7 +503,7 @@ export default function RenderTable({
     }
 
     return cols;
-  }, [groupedData, tableConfig.showRowNumbers, tableConfig.enableSorting, groupBy]);
+  }, [groupedData, tableConfig.showRowNumbers, tableConfig.enableSorting, tableConfig.groupBy]);
 
   // Create header groups for hierarchical grouping
   const headerGroups = useMemo(() => {
@@ -535,7 +523,7 @@ export default function RenderTable({
       });
     }
 
-    if (groupBy === 'year-metric') {
+    if (tableConfig.groupBy === 'year-metric') {
       // Add a group for each year
       const { years, metricsByYear } = groupedData.yearMetricStructure;
       years.forEach(year => {
@@ -546,7 +534,7 @@ export default function RenderTable({
           colSpan: metrics.length,
         });
       });
-    } else if (groupBy === 'metric-year') {
+    } else if (tableConfig.groupBy === 'metric-year') {
       // Add a group for each metric
       const { metrics, yearsByMetric } = groupedData.metricYearStructure;
       metrics.forEach(metric => {
@@ -561,7 +549,7 @@ export default function RenderTable({
 
     return groups;
   }, [
-    groupBy,
+    tableConfig.groupBy,
     groupedData.yearMetricStructure,
     groupedData.metricYearStructure,
     tableConfig.showRowNumbers,
@@ -627,29 +615,12 @@ export default function RenderTable({
 
   return (
     <div className="space-y-4 p-4">
-      {/* Group By Selector */}
-      <div className="mb-4 flex items-center justify-between">
-        <div className="flex items-center space-x-2">
-          <span className="text-sm font-medium">Group by:</span>
-          <Select value={groupBy} onValueChange={value => setGroupBy(value as GroupByOption)}>
-            <SelectTrigger className="w-[180px]">
-              <SelectValue placeholder="Select grouping" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="year">Year</SelectItem>
-              <SelectItem value="metric">Metric</SelectItem>
-              <SelectItem value="year-metric">Year - Metric</SelectItem>
-              <SelectItem value="metric-year">Metric - Year</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-      </div>
-
       {/* Table */}
       <div className="overflow-x-auto rounded-md border">
         <Table className="border-collapse">
           {/* Custom Header for hierarchical grouping */}
-          {((groupBy as string) === 'year-metric' || (groupBy as string) === 'metric-year') &&
+          {((tableConfig.groupBy as string) === 'year-metric' ||
+            (tableConfig.groupBy as string) === 'metric-year') &&
             headerGroups.length > 0 && (
               <thead className="bg-muted/50 [&_tr]:border-b">
                 <tr className="border-b transition-colors">

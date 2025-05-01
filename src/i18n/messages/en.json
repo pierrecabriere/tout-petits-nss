@@ -184,7 +184,14 @@
       },
       "tablePreview": "Table Preview",
       "tablePreviewPlaceholder": "Table preview will be implemented here",
-      "description": "Description"
+      "description": "Description",
+      "groupBy": "Group by",
+      "groupByOptions": {
+        "year": "Year",
+        "metric": "Metric",
+        "yearMetric": "Year - Metric",
+        "metricYear": "Metric - Year"
+      }
     },
     "library": {
       "title": "Charts Library",
