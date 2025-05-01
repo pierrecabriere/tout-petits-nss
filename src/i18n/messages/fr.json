@@ -16,6 +16,7 @@
     "region": "Région",
     "allDates": "Toutes les dates",
     "allRegions": "Toutes les régions",
+    "allYears": "Toutes les années",
     "resetFilters": "Réinitialiser les filtres"
   },
   "navigation": {
@@ -181,7 +182,8 @@
     "detail": {
       "backToLibrary": "Retour à la Bibliothèque",
       "editChart": "Modifier le Graphique",
-      "chartNotFound": "Graphique non trouvé"
+      "chartNotFound": "Graphique non trouvé",
+      "copyEmbedLink": "Copier le lien d'intégration"
     }
   }
 }

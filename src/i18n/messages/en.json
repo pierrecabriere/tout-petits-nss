@@ -42,6 +42,7 @@
     "region": "Region",
     "allDates": "All dates",
     "allRegions": "All regions",
+    "allYears": "All Years",
     "resetFilters": "Reset filters"
   },
   "navigation": {
@@ -165,7 +166,6 @@
       "saveChartDescription": "Provide a name and description for your chart to save it to your library.",
       "chartName": "Chart Name",
       "enterChartName": "Enter chart name",
-      "description": "Description",
       "enterChartDescription": "Enter chart description",
       "cancel": "Cancel"
     },
@@ -181,7 +181,8 @@
     "detail": {
       "backToLibrary": "Back to Library",
       "editChart": "Edit Chart",
-      "chartNotFound": "Chart not found"
+      "chartNotFound": "Chart not found",
+      "copyEmbedLink": "Copy Embed Link"
     }
   }
 }

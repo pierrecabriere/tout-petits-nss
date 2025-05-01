@@ -39,8 +39,9 @@ import {
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import { useLocale } from 'next-intl';
-import { DateRangePicker } from '@/components/ui/date-range-picker';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { YearRangeSlider } from '@/components/ui/year-range-slider';
+import { Label } from '@/components/ui/label';
 
 // Data point type with additional typing for JSON metadata
 type DataPoint = Tables<'metric_data'> & {
@@ -58,9 +59,12 @@ export default function MetricDetailPage() {
   const [pageSize, setPageSize] = useState(10);
   const [sorting, setSorting] = useState<SortingState>([{ id: 'date', desc: true }]);
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
+  const [pagination, setPagination] = useState({ pageIndex: 0, pageSize });
 
   // Filter states
-  const [dateRange, setDateRange] = useState<{ from?: Date; to?: Date }>({});
+  const currentYear = new Date().getUTCFullYear();
+  const minYear = 1980;
+  const [yearRange, setYearRange] = useState<[number, number]>([minYear, currentYear]);
   const [selectedRegion, setSelectedRegion] = useState<string>('all');
 
   // Get the current metric ID from the URL
@@ -124,28 +128,32 @@ export default function MetricDetailPage() {
   });
 
   // Fetch data points with server-side sorting and filtering
-  const { data: dataPoints, isLoading: isLoadingData } = useQuery({
-    queryKey: ['metric-data', metricId, sorting, dateRange, selectedRegion],
+  const { data: dataPointsResult, isLoading: isLoadingData } = useQuery({
+    queryKey: [
+      'metric-data',
+      metricId,
+      sorting,
+      yearRange,
+      selectedRegion,
+      pageSize,
+      pagination.pageIndex,
+    ],
     queryFn: async () => {
       const activeSorting = sorting[0];
+      const currentPageIndex = pagination.pageIndex;
 
       // Start building the query
-      let query = supabaseClient.from('metric_data').select('*').eq('metric_id', metricId);
+      let query = supabaseClient
+        .from('metric_data')
+        .select('*', { count: 'exact' })
+        .eq('metric_id', metricId);
 
-      // Apply date range filter if provided
-      if (dateRange.from) {
-        const fromDate = new Date(dateRange.from);
-        fromDate.setHours(0, 0, 0, 0);
-        query = query.gte('date', fromDate.toISOString().split('T')[0]);
-      }
-
-      if (dateRange.to) {
-        const toDate = new Date(dateRange.to);
-        toDate.setHours(23, 59, 59, 999);
-        // Add one day to make it inclusive
-        toDate.setDate(toDate.getDate() + 1);
-        query = query.lt('date', toDate.toISOString().split('T')[0]);
-      }
+      // Apply year range filter
+      const [fromYear, toYear] = yearRange;
+      const fromDate = new Date(Date.UTC(fromYear, 0, 1));
+      const toDate = new Date(Date.UTC(toYear, 11, 31, 23, 59, 59, 999));
+      query = query.gte('date', fromDate.toISOString().split('T')[0]);
+      query = query.lte('date', toDate.toISOString().split('T')[0]);
 
       // Apply region filter if selected
       if (selectedRegion !== 'all') {
@@ -163,12 +171,16 @@ export default function MetricDetailPage() {
         }
       }
 
-      const { data, error } = await query;
+      // Apply pagination
+      const start = currentPageIndex * pageSize;
+      query = query.range(start, start + pageSize - 1);
+
+      const { data, error, count } = await query;
 
       if (error) throw error;
 
       // Process the data to format JSON metadata and timestamps
-      return data.map(point => {
+      const formattedData = data.map(point => {
         // Get region name from the lookup map
         const region = point.region_id && regions ? regions.get(point.region_id) : null;
 
@@ -184,6 +196,11 @@ export default function MetricDetailPage() {
           year: year,
         };
       }) as DataPoint[];
+
+      return {
+        data: formattedData,
+        pageCount: Math.ceil((count || 0) / pageSize),
+      };
     },
     enabled: !!regions, // Only run this query after regions are loaded
   });
@@ -202,7 +219,7 @@ export default function MetricDetailPage() {
 
   // Reset filters
   const resetFilters = () => {
-    setDateRange({});
+    setYearRange([minYear, currentYear]);
     setSelectedRegion('all');
   };
 
@@ -262,23 +279,23 @@ export default function MetricDetailPage() {
 
   // Initialize the table
   const table = useReactTable({
-    data: dataPoints || [],
+    data: dataPointsResult?.data || [],
     columns,
+    pageCount: dataPointsResult?.pageCount || 0,
     state: {
       sorting,
       columnFilters,
-      pagination: {
-        pageIndex: 0,
-        pageSize,
-      },
+      pagination,
     },
     onSortingChange: setSorting,
     onColumnFiltersChange: setColumnFilters,
+    onPaginationChange: setPagination,
     getCoreRowModel: getCoreRowModel(),
     getPaginationRowModel: getPaginationRowModel(),
     getFilteredRowModel: getFilteredRowModel(),
     manualSorting: true, // Tell the table that we're sorting on the server
     manualFiltering: true, // Tell the table that we're filtering on the server
+    manualPagination: true, // Tell the table that we're handling pagination on the server
   });
 
   return (
@@ -322,36 +339,35 @@ export default function MetricDetailPage() {
               <Button
                 variant="ghost"
                 onClick={resetFilters}
-                disabled={!dateRange.from && !dateRange.to && selectedRegion === 'all'}
+                disabled={
+                  yearRange[0] === minYear &&
+                  yearRange[1] === currentYear &&
+                  selectedRegion === 'all'
+                }
               >
                 {t('common.resetFilters')}
               </Button>
 
-              {/* Date Range Filter */}
+              {/* Year Range Filter Dropdown */}
               <Popover>
                 <PopoverTrigger asChild>
                   <Button variant="outline" className="w-full md:w-auto">
                     <FilterIcon className="mr-2 h-4 w-4" />
-                    {dateRange.from || dateRange.to ? (
-                      <>
-                        {dateRange.from ? format(dateRange.from, 'yyyy') : ''}
-                        {dateRange.from && dateRange.to ? ' - ' : ''}
-                        {dateRange.to ? format(dateRange.to, 'yyyy') : ''}
-                      </>
-                    ) : (
-                      t('common.allDates')
-                    )}
+                    {yearRange[0] === minYear && yearRange[1] === currentYear
+                      ? t('common.allYears') || 'All Years'
+                      : `${yearRange[0]} - ${yearRange[1]}`}
                   </Button>
                 </PopoverTrigger>
-                <PopoverContent className="w-auto p-0" align="end">
-                  <DateRangePicker
-                    initialDateFrom={dateRange.from}
-                    initialDateTo={dateRange.to}
-                    onUpdate={({ range }) => setDateRange(range)}
-                    align="start"
-                    locale={locale}
-                    showCompare={false}
-                  />
+                <PopoverContent className="w-80">
+                  <div className="space-y-2">
+                    <Label>{t('metrics.configurator.yearRange') || 'Year Range'}</Label>
+                    <YearRangeSlider
+                      minYear={minYear}
+                      maxYear={currentYear}
+                      value={yearRange}
+                      onChange={setYearRange}
+                    />
+                  </div>
                 </PopoverContent>
               </Popover>
 
@@ -373,7 +389,7 @@ export default function MetricDetailPage() {
             </div>
           </div>
         </CardHeader>
-        <CardContent>
+        <CardContent className="space-y-4">
           {isLoadingData ? (
             <div className="flex h-96 items-center justify-center">
               <div className="text-center">
@@ -381,7 +397,7 @@ export default function MetricDetailPage() {
                 <p className="text-muted-foreground">{t('metrics.detail.loading')}</p>
               </div>
             </div>
-          ) : dataPoints?.length ? (
+          ) : dataPointsResult?.data.length ? (
             <div className="space-y-4">
               <div className="rounded-md border">
                 <Table>
@@ -426,8 +442,9 @@ export default function MetricDetailPage() {
                   <Select
                     value={`${pageSize}`}
                     onValueChange={value => {
-                      setPageSize(Number(value));
-                      table.setPageSize(Number(value));
+                      const size = Number(value);
+                      setPageSize(size);
+                      setPagination(prev => ({ ...prev, pageSize: size }));
                     }}
                   >
                     <SelectTrigger className="h-8 w-[70px]">
