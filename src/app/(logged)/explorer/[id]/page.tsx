@@ -2,7 +2,7 @@
 
 import { useTranslations } from 'next-intl';
 import { useParams, useRouter } from 'next/navigation';
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { useQuery } from '@tanstack/react-query';
@@ -10,7 +10,14 @@ import supabaseClient from '@/lib/supabase-client';
 import { Tables } from '@/types/database';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Badge } from '@/components/ui/badge';
-import { ChevronLeft, ArrowUpDown, ChevronDown, ChevronUp, FilterIcon } from 'lucide-react';
+import {
+  ChevronLeft,
+  ArrowUpDown,
+  ChevronDown,
+  ChevronUp,
+  FilterIcon,
+  PencilIcon,
+} from 'lucide-react';
 import {
   ColumnDef,
   useReactTable,
@@ -42,6 +49,17 @@ import { useLocale } from 'next-intl';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { YearRangeSlider } from '@/components/ui/year-range-slider';
 import { Label } from '@/components/ui/label';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
+import { useToast } from '@/hooks/use-toast';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 
 // Data point type with additional typing for JSON metadata
 type DataPoint = Tables<'metric_data'> & {
@@ -56,10 +74,14 @@ export default function MetricDetailPage() {
   const params = useParams();
   const router = useRouter();
   const locale = useLocale();
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
   const [pageSize, setPageSize] = useState(10);
   const [sorting, setSorting] = useState<SortingState>([{ id: 'date', desc: true }]);
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
   const [pagination, setPagination] = useState({ pageIndex: 0, pageSize });
+  const [editModalOpen, setEditModalOpen] = useState(false);
+  const [editingData, setEditingData] = useState<DataPoint | null>(null);
 
   // Filter states
   const currentYear = new Date().getUTCFullYear();
@@ -214,13 +236,83 @@ export default function MetricDetailPage() {
 
   // Go back to metrics explorer
   const handleBackClick = () => {
-    router.push('/explorer');
+    router.push('/');
   };
 
   // Reset filters
   const resetFilters = () => {
     setYearRange([minYear, currentYear]);
     setSelectedRegion('all');
+  };
+
+  // Mutation for updating data points
+  const updateDataMutation = useMutation({
+    mutationFn: async (data: { id: string; value: number; region_id: string; date: string }) => {
+      const { id, value, region_id, date } = data;
+
+      const { data: result, error } = await supabaseClient
+        .from('metric_data')
+        .update({
+          value,
+          region_id,
+          date,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', id)
+        .select()
+        .single();
+
+      if (error) throw error;
+      return result;
+    },
+    onSuccess: () => {
+      // Invalidate and refetch the data points query to update the table
+      queryClient.invalidateQueries({ queryKey: ['metric-data', metricId] });
+      toast({
+        title: t('metrics.detail.updateSuccess'),
+        description: t('metrics.detail.dataPointUpdated'),
+      });
+      setEditModalOpen(false);
+    },
+    onError: error => {
+      toast({
+        title: t('metrics.detail.updateError'),
+        description: error.message,
+        variant: 'destructive',
+      });
+    },
+  });
+
+  // Handle opening the edit modal
+  const handleEditClick = (dataPoint: DataPoint) => {
+    setEditingData(dataPoint);
+    setEditModalOpen(true);
+  };
+
+  // Handle saving the edited data
+  const handleSaveEdit = () => {
+    if (!editingData) return;
+
+    // Convert year to ISO date format
+    let date = editingData.date;
+    if (editingData.year) {
+      // Keep the original month and day, just update the year
+      const originalDate = new Date(date);
+      const newDate = new Date(
+        parseInt(editingData.year, 10),
+        originalDate.getUTCMonth(),
+        originalDate.getUTCDate()
+      );
+      date = newDate.toISOString().split('T')[0];
+    }
+
+    updateDataMutation.mutate({
+      id: editingData.id,
+      value:
+        typeof editingData.value === 'string' ? parseFloat(editingData.value) : editingData.value,
+      region_id: editingData.region_id || '',
+      date,
+    });
   };
 
   // Table columns definition
@@ -242,13 +334,27 @@ export default function MetricDetailPage() {
           </Button>
         );
       },
-      cell: ({ row }) => <div>{row.original.year}</div>,
+      cell: ({ row }) => (
+        <div
+          className="cursor-pointer hover:underline"
+          onClick={() => handleEditClick(row.original)}
+        >
+          {row.original.year}
+        </div>
+      ),
     },
     {
       accessorKey: 'region_name',
       header: () => <div className="font-medium">{t('common.region')}</div>,
-      cell: ({ row }) => <div>{row.original.region_name || '-'}</div>,
-      enableSorting: false, // Désactiver le tri sur cette colonne
+      cell: ({ row }) => (
+        <div
+          className="cursor-pointer hover:underline"
+          onClick={() => handleEditClick(row.original)}
+        >
+          {row.original.region_name || '-'}
+        </div>
+      ),
+      enableSorting: false,
     },
     {
       accessorKey: 'value',
@@ -268,13 +374,24 @@ export default function MetricDetailPage() {
         );
       },
       cell: ({ row }) => (
-        <div className="font-medium">
+        <div
+          className="cursor-pointer font-medium hover:underline"
+          onClick={() => handleEditClick(row.original)}
+        >
           {row.original.value}
           {metric?.unit && <span className="ml-1 text-muted-foreground">{metric.unit}</span>}
         </div>
       ),
     },
-    // Metadata column is hidden
+    {
+      id: 'actions',
+      cell: ({ row }) => (
+        <Button size="icon" variant="ghost" onClick={() => handleEditClick(row.original)}>
+          <PencilIcon className="h-4 w-4" />
+          <span className="sr-only">{t('common.edit')}</span>
+        </Button>
+      ),
+    },
   ];
 
   // Initialize the table
@@ -299,7 +416,7 @@ export default function MetricDetailPage() {
   });
 
   return (
-    <div className="space-y-4">
+    <div className="mt-8 space-y-8">
       <div>
         <Button variant="ghost" onClick={handleBackClick} className="-ml-2">
           <ChevronLeft className="mr-2 h-4 w-4" />
@@ -307,194 +424,278 @@ export default function MetricDetailPage() {
         </Button>
       </div>
 
-      {isLoadingMetric ? (
-        <div className="space-y-2">
-          <Skeleton className="h-8 w-1/3" />
-          <Skeleton className="h-4 w-1/2" />
-        </div>
-      ) : metric ? (
-        <div>
-          <div className="flex items-center gap-2">
-            <h1 className="text-3xl font-bold tracking-tight">{metric.name}</h1>
-            {metric.unit && <Badge variant="outline">{metric.unit}</Badge>}
-          </div>
-          {metric.description && <p className="mt-1 text-muted-foreground">{metric.description}</p>}
-          {metric.source && (
-            <p className="mt-1 text-sm text-muted-foreground">
-              {t('metrics.explorer.source')}: {metric.source.name}
-            </p>
-          )}
-        </div>
-      ) : null}
-
       <Card>
-        <CardHeader>
-          <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+        <CardHeader className="flex flex-col gap-2 border-b pb-4">
+          {isLoadingMetric ? (
+            <div className="space-y-2">
+              <Skeleton className="h-8 w-1/3" />
+              <Skeleton className="h-4 w-1/2" />
+            </div>
+          ) : metric ? (
             <div>
-              <CardTitle>{t('metrics.detail.dataPoints')}</CardTitle>
-              <CardDescription>{metric?.description}</CardDescription>
+              <div className="flex items-center gap-2">
+                <CardTitle className="text-3xl font-bold tracking-tight">{metric.name}</CardTitle>
+                {metric.unit && <Badge variant="outline">{metric.unit}</Badge>}
+              </div>
+              {metric.description && (
+                <CardDescription className="mt-1">{metric.description}</CardDescription>
+              )}
+              {metric.source && (
+                <p className="mt-1 text-sm text-muted-foreground">
+                  {t('metrics.explorer.source')}: {metric.source.name}
+                </p>
+              )}
             </div>
-            <div className="flex flex-col gap-2 md:flex-row md:items-center">
-              {/* Reset Filters Button */}
-              <Button
-                variant="ghost"
-                onClick={resetFilters}
-                disabled={
-                  yearRange[0] === minYear &&
-                  yearRange[1] === currentYear &&
-                  selectedRegion === 'all'
-                }
-              >
-                {t('common.resetFilters')}
-              </Button>
-
-              {/* Year Range Filter Dropdown */}
-              <Popover>
-                <PopoverTrigger asChild>
-                  <Button variant="outline" className="w-full md:w-auto">
-                    <FilterIcon className="mr-2 h-4 w-4" />
-                    {yearRange[0] === minYear && yearRange[1] === currentYear
-                      ? t('common.allYears') || 'All Years'
-                      : `${yearRange[0]} - ${yearRange[1]}`}
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-80">
-                  <div className="space-y-2">
-                    <Label>{t('metrics.configurator.yearRange') || 'Year Range'}</Label>
-                    <YearRangeSlider
-                      minYear={minYear}
-                      maxYear={currentYear}
-                      value={yearRange}
-                      onChange={setYearRange}
-                    />
-                  </div>
-                </PopoverContent>
-              </Popover>
-
-              {/* Region Filter */}
-              <Select value={selectedRegion} onValueChange={setSelectedRegion}>
-                <SelectTrigger className="w-full md:w-[200px]">
-                  <SelectValue placeholder={t('common.allRegions')} />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">{t('common.allRegions')}</SelectItem>
-                  {regions &&
-                    Array.from(regions.values()).map(region => (
-                      <SelectItem key={region.id} value={region.id}>
-                        {region.name}
-                      </SelectItem>
-                    ))}
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
+          ) : null}
         </CardHeader>
-        <CardContent className="space-y-4">
-          {isLoadingData ? (
-            <div className="flex h-96 items-center justify-center">
-              <div className="text-center">
-                <div className="mx-auto mb-4 h-8 w-8 animate-spin rounded-full border-b-2 border-primary"></div>
-                <p className="text-muted-foreground">{t('metrics.detail.loading')}</p>
+        <CardContent className="pt-6">
+          <div className="space-y-4">
+            <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+              <div>
+                <h2 className="text-xl font-semibold leading-none tracking-tight">
+                  {t('metrics.detail.dataPoints')}
+                </h2>
+                <p className="text-sm text-muted-foreground">{metric?.description}</p>
               </div>
-            </div>
-          ) : dataPointsResult?.data.length ? (
-            <div className="space-y-4">
-              <div className="rounded-md border">
-                <Table>
-                  <TableHeader>
-                    {table.getHeaderGroups().map(headerGroup => (
-                      <TableRow key={headerGroup.id}>
-                        {headerGroup.headers.map(header => (
-                          <TableHead key={header.id}>
-                            {header.isPlaceholder
-                              ? null
-                              : flexRender(header.column.columnDef.header, header.getContext())}
-                          </TableHead>
-                        ))}
-                      </TableRow>
-                    ))}
-                  </TableHeader>
-                  <TableBody>
-                    {table.getRowModel().rows.length ? (
-                      table.getRowModel().rows.map(row => (
-                        <TableRow key={row.id} data-state={row.getIsSelected() && 'selected'}>
-                          {row.getVisibleCells().map(cell => (
-                            <TableCell key={cell.id}>
-                              {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                            </TableCell>
-                          ))}
-                        </TableRow>
-                      ))
-                    ) : (
-                      <TableRow>
-                        <TableCell colSpan={columns.length} className="h-24 text-center">
-                          {t('metrics.detail.noData')}
-                        </TableCell>
-                      </TableRow>
-                    )}
-                  </TableBody>
-                </Table>
-              </div>
+              <div className="flex flex-col gap-2 md:flex-row md:items-center">
+                {/* Reset Filters Button */}
+                <Button
+                  variant="ghost"
+                  onClick={resetFilters}
+                  disabled={
+                    yearRange[0] === minYear &&
+                    yearRange[1] === currentYear &&
+                    selectedRegion === 'all'
+                  }
+                >
+                  {t('common.resetFilters')}
+                </Button>
 
-              <div className="flex items-center justify-between">
-                <div className="flex items-center space-x-2">
-                  <p className="text-sm font-medium">{t('metrics.detail.rowsPerPage')}</p>
-                  <Select
-                    value={`${pageSize}`}
-                    onValueChange={value => {
-                      const size = Number(value);
-                      setPageSize(size);
-                      setPagination(prev => ({ ...prev, pageSize: size }));
-                    }}
-                  >
-                    <SelectTrigger className="h-8 w-[70px]">
-                      <SelectValue placeholder={pageSize} />
-                    </SelectTrigger>
-                    <SelectContent side="top">
-                      {[5, 10, 20, 50, 100].map(size => (
-                        <SelectItem key={size} value={`${size}`}>
-                          {size}
+                {/* Year Range Filter Dropdown */}
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button variant="outline" className="w-full md:w-auto">
+                      <FilterIcon className="mr-2 h-4 w-4" />
+                      {yearRange[0] === minYear && yearRange[1] === currentYear
+                        ? t('common.allYears') || 'All Years'
+                        : `${yearRange[0]} - ${yearRange[1]}`}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-80">
+                    <div className="space-y-2">
+                      <Label>{t('metrics.configurator.yearRange') || 'Year Range'}</Label>
+                      <YearRangeSlider
+                        minYear={minYear}
+                        maxYear={currentYear}
+                        value={yearRange}
+                        onChange={setYearRange}
+                      />
+                    </div>
+                  </PopoverContent>
+                </Popover>
+
+                {/* Region Filter */}
+                <Select value={selectedRegion} onValueChange={setSelectedRegion}>
+                  <SelectTrigger className="w-full md:w-[200px]">
+                    <SelectValue placeholder={t('common.allRegions')} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">{t('common.allRegions')}</SelectItem>
+                    {regions &&
+                      Array.from(regions.values()).map(region => (
+                        <SelectItem key={region.id} value={region.id}>
+                          {region.name}
                         </SelectItem>
                       ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div className="flex items-center space-x-6 lg:space-x-8">
-                  <div className="flex w-[100px] items-center justify-center text-sm font-medium">
-                    {t('common.page')} {table.getState().pagination.pageIndex + 1}{' '}
-                    {t('metrics.detail.of')} {table.getPageCount()}
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <Button
-                      variant="outline"
-                      className="h-8 w-8 p-0"
-                      onClick={() => table.previousPage()}
-                      disabled={!table.getCanPreviousPage()}
-                    >
-                      <span className="sr-only">Previous page</span>
-                      <ChevronLeft className="h-4 w-4" />
-                    </Button>
-                    <Button
-                      variant="outline"
-                      className="h-8 w-8 p-0"
-                      onClick={() => table.nextPage()}
-                      disabled={!table.getCanNextPage()}
-                    >
-                      <span className="sr-only">Next page</span>
-                      <ChevronDown className="h-4 w-4 rotate-[-90deg]" />
-                    </Button>
-                  </div>
-                </div>
+                  </SelectContent>
+                </Select>
               </div>
             </div>
-          ) : (
-            <div className="py-24 text-center">
-              <p className="text-muted-foreground">{t('metrics.detail.noData')}</p>
+            <div className="space-y-4">
+              {isLoadingData ? (
+                <div className="flex h-96 items-center justify-center">
+                  <div className="text-center">
+                    <div className="mx-auto mb-4 h-8 w-8 animate-spin rounded-full border-b-2 border-primary"></div>
+                    <p className="text-muted-foreground">{t('metrics.detail.loading')}</p>
+                  </div>
+                </div>
+              ) : dataPointsResult?.data.length ? (
+                <div className="space-y-4">
+                  <div>
+                    <Table>
+                      <TableHeader>
+                        {table.getHeaderGroups().map(headerGroup => (
+                          <TableRow key={headerGroup.id}>
+                            {headerGroup.headers.map(header => (
+                              <TableHead key={header.id}>
+                                {header.isPlaceholder
+                                  ? null
+                                  : flexRender(header.column.columnDef.header, header.getContext())}
+                              </TableHead>
+                            ))}
+                          </TableRow>
+                        ))}
+                      </TableHeader>
+                      <TableBody>
+                        {table.getRowModel().rows.length ? (
+                          table.getRowModel().rows.map(row => (
+                            <TableRow key={row.id} data-state={row.getIsSelected() && 'selected'}>
+                              {row.getVisibleCells().map(cell => (
+                                <TableCell key={cell.id}>
+                                  {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                                </TableCell>
+                              ))}
+                            </TableRow>
+                          ))
+                        ) : (
+                          <TableRow>
+                            <TableCell colSpan={columns.length} className="h-24 text-center">
+                              {t('metrics.detail.noData')}
+                            </TableCell>
+                          </TableRow>
+                        )}
+                      </TableBody>
+                    </Table>
+                  </div>
+
+                  <div className="flex flex-col items-center justify-between gap-4 sm:flex-row">
+                    <div className="flex items-center space-x-2">
+                      <p className="text-sm font-medium">{t('metrics.detail.rowsPerPage')}</p>
+                      <Select
+                        value={`${pageSize}`}
+                        onValueChange={value => {
+                          const size = Number(value);
+                          setPageSize(size);
+                          setPagination(prev => ({ ...prev, pageSize: size }));
+                        }}
+                      >
+                        <SelectTrigger className="h-8 w-[70px]">
+                          <SelectValue placeholder={pageSize} />
+                        </SelectTrigger>
+                        <SelectContent side="top">
+                          {[5, 10, 20, 50, 100].map(size => (
+                            <SelectItem key={size} value={`${size}`}>
+                              {size}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    <div className="flex items-center space-x-4 lg:space-x-6">
+                      <div className="flex w-[100px] items-center justify-center text-sm font-medium">
+                        {t('common.page')} {table.getState().pagination.pageIndex + 1}{' '}
+                        {t('metrics.detail.of')} {table.getPageCount()}
+                      </div>
+                      <div className="flex items-center space-x-2">
+                        <Button
+                          variant="outline"
+                          className="h-8 w-8 p-0"
+                          onClick={() => table.previousPage()}
+                          disabled={!table.getCanPreviousPage()}
+                        >
+                          <span className="sr-only">Previous page</span>
+                          <ChevronLeft className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          variant="outline"
+                          className="h-8 w-8 p-0"
+                          onClick={() => table.nextPage()}
+                          disabled={!table.getCanNextPage()}
+                        >
+                          <span className="sr-only">Next page</span>
+                          <ChevronDown className="h-4 w-4 rotate-[-90deg]" />
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <div className="py-24 text-center">
+                  <p className="text-muted-foreground">{t('metrics.detail.noData')}</p>
+                </div>
+              )}
             </div>
-          )}
+          </div>
         </CardContent>
       </Card>
+
+      {/* Edit Data Point Modal */}
+      <Dialog open={editModalOpen} onOpenChange={setEditModalOpen}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle>{t('metrics.detail.editDataPoint')}</DialogTitle>
+            <DialogDescription>{t('metrics.detail.editDataPointDescription')}</DialogDescription>
+          </DialogHeader>
+          {editingData && (
+            <div className="grid gap-4 py-4">
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="year" className="text-right">
+                  {t('common.year')}
+                </Label>
+                <Input
+                  id="year"
+                  type="number"
+                  className="col-span-3"
+                  value={editingData.year}
+                  onChange={e => setEditingData({ ...editingData, year: e.target.value })}
+                />
+              </div>
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="region" className="text-right">
+                  {t('common.region')}
+                </Label>
+                <Select
+                  value={editingData.region_id || ''}
+                  onValueChange={value => setEditingData({ ...editingData, region_id: value })}
+                >
+                  <SelectTrigger id="region" className="col-span-3">
+                    <SelectValue placeholder={t('common.selectRegion')} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {regions &&
+                      Array.from(regions.values()).map(region => (
+                        <SelectItem key={region.id} value={region.id}>
+                          {region.name}
+                        </SelectItem>
+                      ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="value" className="text-right">
+                  {t('metrics.detail.value')}
+                </Label>
+                <Input
+                  id="value"
+                  type="number"
+                  step="0.01"
+                  className="col-span-3"
+                  value={editingData.value}
+                  onChange={e =>
+                    setEditingData({
+                      ...editingData,
+                      value: e.target.value === '' ? 0 : parseFloat(e.target.value),
+                    })
+                  }
+                />
+              </div>
+            </div>
+          )}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditModalOpen(false)}>
+              {t('common.cancel')}
+            </Button>
+            <Button onClick={handleSaveEdit} disabled={updateDataMutation.isPending}>
+              {updateDataMutation.isPending ? (
+                <div className="h-4 w-4 animate-spin rounded-full border-b-2 border-background"></div>
+              ) : (
+                t('common.save')
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

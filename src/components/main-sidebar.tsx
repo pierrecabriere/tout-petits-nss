@@ -7,13 +7,11 @@ import {
   SidebarGroup,
   SidebarHeader,
   SidebarGroupContent,
-  SidebarGroupLabel,
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
 } from '@/components/ui/sidebar';
 import {
-  Home,
   User2,
   ChevronUp,
   Monitor,
@@ -47,7 +45,7 @@ const items: Array<{
 }> = [
   {
     titleKey: 'navigation.explorer',
-    url: '/explorer',
+    url: '/',
     icon: BarChart2,
   },
   {
@@ -86,21 +84,6 @@ export default function MainSidebar() {
       </SidebarHeader>
       <SidebarContent>
         <SidebarGroup>
-          <SidebarGroupContent>
-            <SidebarMenu>
-              <SidebarMenuItem>
-                <SidebarMenuButton asChild className={pathname === '/' ? 'bg-accent' : ''}>
-                  <Link href="/">
-                    <Home />
-                    <span>{t('navigation.home')}</span>
-                  </Link>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
-            </SidebarMenu>
-          </SidebarGroupContent>
-        </SidebarGroup>
-        <SidebarGroup>
-          <SidebarGroupLabel>{t('navigation.mainMenu')}</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
               {items.map(item => (

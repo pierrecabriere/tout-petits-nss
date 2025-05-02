@@ -8,14 +8,6 @@ import { Tables } from '@/types/database';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
 import { ChevronLeft, BarChart, Edit, Save, ChevronDown, Link } from 'lucide-react';
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-  CardFooter,
-} from '@/components/ui/card';
 import RenderChart from '@/components/ui/charts/RenderChart';
 import { useState, useEffect } from 'react';
 import { Input } from '@/components/ui/input';
@@ -32,7 +24,6 @@ import { useToast } from '@/hooks/use-toast';
 import {
   DropdownMenu,
   DropdownMenuContent,
-  DropdownMenuItem,
   DropdownMenuTrigger,
   DropdownMenuSeparator,
   DropdownMenuCheckboxItem,
@@ -41,6 +32,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { MetricTreeSelector } from '@/components/ui/metric-tree-selector';
 import { YearRangeSlider } from '@/components/ui/year-range-slider';
 import RenderTable from '@/components/ui/tables/RenderTable';
+import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
 
 // Simple switch component
 const Switch = ({
@@ -90,20 +82,10 @@ export default function ChartDetailPage() {
   const [editOpen, setEditOpen] = useState(false);
   const [activeTab, setActiveTab] = useState('default');
 
-  // View state for chart/table toggle
-  const [viewMode, setViewMode] = useState<'chart' | 'table'>('chart');
-
   // State for chart configuration
   const [chartName, setChartName] = useState('');
   const [chartDescription, setChartDescription] = useState('');
   const [chartType, setChartType] = useState<'line' | 'bar' | 'pie' | 'area'>('line');
-  const [dateRange, setDateRange] = useState<{
-    from: Date | undefined;
-    to: Date | undefined;
-  }>({
-    from: undefined,
-    to: undefined,
-  });
   const [yearRange, setYearRange] = useState<[number, number]>([
     new Date().getFullYear() - 5,
     new Date().getFullYear(),
@@ -153,7 +135,7 @@ export default function ChartDetailPage() {
   }, []);
 
   // Fetch chart details and associated metrics
-  const { data: chartData, isLoading } = useQuery({
+  const { data: chartData, isLoading } = useQuery<ChartWithMetrics | undefined>({
     queryKey: ['chart-detail', chartId],
     queryFn: async () => {
       // Get chart details
@@ -262,11 +244,6 @@ export default function ChartDetailPage() {
         setYearRange([fromDate.getFullYear(), toDate.getFullYear()]);
       }
 
-      setDateRange({
-        from: chartConfig?.dateRange?.from ? new Date(chartConfig.dateRange.from) : undefined,
-        to: chartConfig?.dateRange?.to ? new Date(chartConfig.dateRange.to) : undefined,
-      });
-
       setShowLegend(chartConfig?.showLegend ?? true);
       setColorScheme(chartConfig?.colorScheme || 'default');
       setCurveType(chartConfig?.curveType || 'monotone');
@@ -315,477 +292,529 @@ export default function ChartDetailPage() {
   };
 
   return (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <Button variant="ghost" onClick={handleBackClick} className="-ml-2">
-          <ChevronLeft className="mr-2 h-4 w-4" />
-          {t('library.detail.backToLibrary')}
-        </Button>
-        {chartData && (
-          <div className="flex space-x-2">
-            <Popover open={editOpen} onOpenChange={setEditOpen}>
-              <PopoverTrigger asChild>
-                <Button variant="outline">
-                  <Edit className="mr-2 h-4 w-4" />
-                  {t('library.detail.editChart')}
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent className="w-[600px] p-4" align="end">
-                <div className="space-y-4">
-                  <h3 className="font-medium">{t('library.detail.editChart')}</h3>
+    <div className="mt-8 space-y-8">
+      <Card>
+        <CardHeader className="flex flex-col gap-2 border-b pb-4">
+          <div className="flex items-center justify-between">
+            <Button variant="ghost" onClick={handleBackClick} className="-ml-2">
+              <ChevronLeft className="mr-2 h-4 w-4" />
+              {t('library.detail.backToLibrary')}
+            </Button>
+            {chartData && (
+              <div className="flex space-x-2">
+                <Popover open={editOpen} onOpenChange={setEditOpen}>
+                  <PopoverTrigger asChild>
+                    <Button variant="outline">
+                      <Edit className="mr-2 h-4 w-4" />
+                      {t('library.detail.editChart')}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-[600px] border p-4 shadow-lg" align="end">
+                    <div className="space-y-4">
+                      <h3 className="font-medium">{t('library.detail.editChart')}</h3>
 
-                  <Tabs defaultValue="global" onValueChange={setActiveTab} value={activeTab}>
-                    <TabsList className="grid w-full grid-cols-3">
-                      <TabsTrigger value="global">Global Settings</TabsTrigger>
-                      <TabsTrigger value="chart">Chart Options</TabsTrigger>
-                      <TabsTrigger value="table">Table Options</TabsTrigger>
-                    </TabsList>
+                      <Tabs defaultValue="global" onValueChange={setActiveTab} value={activeTab}>
+                        <TabsList className="grid w-full grid-cols-3">
+                          <TabsTrigger value="global">Global Settings</TabsTrigger>
+                          <TabsTrigger value="chart">Chart Options</TabsTrigger>
+                          <TabsTrigger value="table">Table Options</TabsTrigger>
+                        </TabsList>
 
-                    <TabsContent value="global" className="space-y-4 pt-4">
-                      <div className="space-y-2">
-                        <Label htmlFor="chart-name">Chart Name</Label>
-                        <Input
-                          id="chart-name"
-                          value={chartName}
-                          onChange={e => setChartName(e.target.value)}
-                          placeholder="Enter chart name"
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="chart-description">Description</Label>
-                        <Textarea
-                          id="chart-description"
-                          value={chartDescription}
-                          onChange={e => setChartDescription(e.target.value)}
-                          placeholder="Enter chart description"
-                          rows={3}
-                        />
-                      </div>
+                        <TabsContent value="global" className="space-y-4 pt-4">
+                          <div className="space-y-2">
+                            <Label htmlFor="chart-name">Chart Name</Label>
+                            <Input
+                              id="chart-name"
+                              value={chartName}
+                              onChange={e => setChartName(e.target.value)}
+                              placeholder="Enter chart name"
+                            />
+                          </div>
+                          <div className="space-y-2">
+                            <Label htmlFor="chart-description">Description</Label>
+                            <Textarea
+                              id="chart-description"
+                              value={chartDescription}
+                              onChange={e => setChartDescription(e.target.value)}
+                              placeholder="Enter chart description"
+                              rows={3}
+                            />
+                          </div>
 
-                      {/* Metrics selection using the MetricTreeSelector component */}
-                      <MetricTreeSelector
-                        selectedMetrics={selectedMetrics}
-                        onSelectMetrics={setSelectedMetrics}
-                        disableEmptyMetrics={true}
-                      />
-
-                      {/* Date Range Selection */}
-                      <div className="space-y-2">
-                        <Label>{t('metrics.configurator.yearRange')}</Label>
-                        <div className="w-full px-1 py-2">
-                          <YearRangeSlider
-                            minYear={1980}
-                            maxYear={new Date().getFullYear()}
-                            value={yearRange}
-                            onChange={setYearRange}
+                          {/* Metrics selection using the MetricTreeSelector component */}
+                          <MetricTreeSelector
+                            selectedMetrics={selectedMetrics}
+                            onSelectMetrics={setSelectedMetrics}
+                            disableEmptyMetrics={true}
                           />
-                        </div>
-                      </div>
 
-                      {/* Region Multi-Select */}
-                      <div className="space-y-2">
-                        <Label>{t('metrics.configurator.regions')}</Label>
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <Button variant="outline" className="w-full justify-between">
-                              {selectedRegions.length === 0
-                                ? t('metrics.configurator.selectRegions')
-                                : selectedRegions.length === regions.length
-                                  ? t('metrics.configurator.allRegions')
-                                  : `${selectedRegions.length} ${t('metrics.configurator.regionSelected', { count: selectedRegions.length })}`}
-                              <ChevronDown className="h-4 w-4 opacity-50" />
-                            </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent className="max-h-72 w-64 overflow-y-auto">
-                            {loadingRegions ? (
-                              <div className="p-2 text-sm text-muted-foreground">
-                                {t('metrics.configurator.loading')}
-                              </div>
-                            ) : regions.length === 0 ? (
-                              <div className="p-2 text-sm text-muted-foreground">
-                                {t('metrics.configurator.noRegions')}
-                              </div>
-                            ) : (
-                              <>
-                                <DropdownMenuCheckboxItem
-                                  key="all-regions"
-                                  checked={selectedRegions.length === regions.length}
-                                  onCheckedChange={checked => {
-                                    if (checked) {
-                                      setSelectedRegions(regions.map(r => r.id));
-                                    } else {
-                                      setSelectedRegions([]);
-                                    }
-                                  }}
-                                >
-                                  {t('metrics.configurator.allRegions')}
-                                </DropdownMenuCheckboxItem>
-                                <DropdownMenuSeparator />
-                                {regions.map(region => (
-                                  <DropdownMenuCheckboxItem
-                                    key={region.id}
-                                    checked={selectedRegions.includes(region.id)}
-                                    onCheckedChange={checked => {
-                                      setSelectedRegions(prev => {
-                                        let next;
+                          {/* Date Range Selection */}
+                          <div className="space-y-2">
+                            <Label>{t('metrics.configurator.yearRange')}</Label>
+                            <div className="w-full px-1 py-2">
+                              <YearRangeSlider
+                                minYear={1980}
+                                maxYear={new Date().getFullYear()}
+                                value={yearRange}
+                                onChange={setYearRange}
+                              />
+                            </div>
+                          </div>
+
+                          {/* Region Multi-Select */}
+                          <div className="space-y-2">
+                            <Label>{t('metrics.configurator.regions')}</Label>
+                            <DropdownMenu>
+                              <DropdownMenuTrigger asChild>
+                                <Button variant="outline" className="w-full justify-between">
+                                  {selectedRegions.length === 0
+                                    ? t('metrics.configurator.selectRegions')
+                                    : selectedRegions.length === regions.length
+                                      ? t('metrics.configurator.allRegions')
+                                      : `${selectedRegions.length} ${t('metrics.configurator.regionSelected', { count: selectedRegions.length })}`}
+                                  <ChevronDown className="h-4 w-4 opacity-50" />
+                                </Button>
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent className="max-h-72 w-64 overflow-y-auto">
+                                {loadingRegions ? (
+                                  <div className="p-2 text-sm text-muted-foreground">
+                                    {t('metrics.configurator.loading')}
+                                  </div>
+                                ) : regions.length === 0 ? (
+                                  <div className="p-2 text-sm text-muted-foreground">
+                                    {t('metrics.configurator.noRegions')}
+                                  </div>
+                                ) : (
+                                  <>
+                                    <DropdownMenuCheckboxItem
+                                      key="all-regions"
+                                      checked={selectedRegions.length === regions.length}
+                                      onCheckedChange={checked => {
                                         if (checked) {
-                                          next = [...prev, region.id];
+                                          setSelectedRegions(regions.map(r => r.id));
                                         } else {
-                                          next = prev.filter(id => id !== region.id);
+                                          setSelectedRegions([]);
                                         }
-                                        // Si tout est sélectionné individuellement, activer "Toutes les régions"
-                                        if (next.length === regions.length) {
-                                          return regions.map(r => r.id);
-                                        }
-                                        return next;
-                                      });
-                                    }}
-                                  >
-                                    {region.name}
-                                  </DropdownMenuCheckboxItem>
-                                ))}
-                              </>
-                            )}
-                          </DropdownMenuContent>
-                        </DropdownMenu>
-                      </div>
-                    </TabsContent>
-
-                    <TabsContent value="chart" className="space-y-4 pt-4">
-                      <div className="space-y-4">
-                        {/* Chart Type Selection */}
-                        <div className="space-y-2">
-                          <Label htmlFor="chartType">Chart Type</Label>
-                          <Select
-                            value={chartType}
-                            onValueChange={(value: string) => setChartType(value as any)}
-                          >
-                            <SelectTrigger id="chartType">
-                              <SelectValue placeholder="Select chart type" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="line">Line Chart</SelectItem>
-                              <SelectItem value="area">Area Chart</SelectItem>
-                              <SelectItem value="bar">Bar Chart</SelectItem>
-                              <SelectItem value="pie">Pie Chart</SelectItem>
-                            </SelectContent>
-                          </Select>
-                        </div>
-
-                        {/* Stacked option for bar and area charts */}
-                        {(chartType === 'bar' || chartType === 'area') && (
-                          <div className="flex items-center justify-between">
-                            <Label htmlFor="stacked">Stacked Chart</Label>
-                            <Switch id="stacked" checked={stacked} onCheckedChange={setStacked} />
+                                      }}
+                                    >
+                                      {t('metrics.configurator.allRegions')}
+                                    </DropdownMenuCheckboxItem>
+                                    <DropdownMenuSeparator />
+                                    {regions.map(region => (
+                                      <DropdownMenuCheckboxItem
+                                        key={region.id}
+                                        checked={selectedRegions.includes(region.id)}
+                                        onCheckedChange={checked => {
+                                          setSelectedRegions(prev => {
+                                            let next;
+                                            if (checked) {
+                                              next = [...prev, region.id];
+                                            } else {
+                                              next = prev.filter(id => id !== region.id);
+                                            }
+                                            // Si tout est sélectionné individuellement, activer "Toutes les régions"
+                                            if (next.length === regions.length) {
+                                              return regions.map(r => r.id);
+                                            }
+                                            return next;
+                                          });
+                                        }}
+                                      >
+                                        {region.name}
+                                      </DropdownMenuCheckboxItem>
+                                    ))}
+                                  </>
+                                )}
+                              </DropdownMenuContent>
+                            </DropdownMenu>
                           </div>
-                        )}
+                        </TabsContent>
 
-                        {/* Common options */}
-                        <div className="flex items-center justify-between">
-                          <Label htmlFor="show-legend">Show Legend</Label>
-                          <Switch
-                            id="show-legend"
-                            checked={showLegend}
-                            onCheckedChange={setShowLegend}
-                          />
-                        </div>
-
-                        {/* Color scheme selection */}
-                        <div className="space-y-2">
-                          <Label>Color Scheme</Label>
-                          <div className="flex gap-3">
-                            {(['default', 'pastel', 'vibrant'] as const).map(scheme => (
-                              <Button
-                                key={scheme}
-                                type="button"
-                                variant={colorScheme === scheme ? 'default' : 'outline'}
-                                className="flex-1"
-                                onClick={() => setColorScheme(scheme)}
-                                size="sm"
-                              >
-                                {scheme.charAt(0).toUpperCase() + scheme.slice(1)}
-                              </Button>
-                            ))}
-                          </div>
-                        </div>
-
-                        {/* Line chart specific options */}
-                        {chartType === 'line' && (
-                          <>
+                        <TabsContent value="chart" className="space-y-4 pt-4">
+                          <div className="space-y-4">
+                            {/* Chart Type Selection */}
                             <div className="space-y-2">
-                              <Label htmlFor="curveType">Curve Type</Label>
+                              <Label htmlFor="chartType">Chart Type</Label>
                               <Select
-                                value={curveType}
-                                onValueChange={(value: string) => setCurveType(value as any)}
+                                value={chartType}
+                                onValueChange={(value: string) => setChartType(value as any)}
                               >
-                                <SelectTrigger id="curveType">
-                                  <SelectValue placeholder="Select curve type" />
+                                <SelectTrigger id="chartType">
+                                  <SelectValue placeholder="Select chart type" />
                                 </SelectTrigger>
                                 <SelectContent>
-                                  <SelectItem value="linear">Linear</SelectItem>
-                                  <SelectItem value="monotone">Smooth</SelectItem>
-                                  <SelectItem value="step">Step</SelectItem>
+                                  <SelectItem value="line">Line Chart</SelectItem>
+                                  <SelectItem value="area">Area Chart</SelectItem>
+                                  <SelectItem value="bar">Bar Chart</SelectItem>
+                                  <SelectItem value="pie">Pie Chart</SelectItem>
                                 </SelectContent>
                               </Select>
                             </div>
+
+                            {/* Stacked option for bar and area charts */}
+                            {(chartType === 'bar' || chartType === 'area') && (
+                              <div className="flex items-center justify-between">
+                                <Label htmlFor="stacked">Stacked Chart</Label>
+                                <Switch
+                                  id="stacked"
+                                  checked={stacked}
+                                  onCheckedChange={setStacked}
+                                />
+                              </div>
+                            )}
+
+                            {/* Common options */}
                             <div className="flex items-center justify-between">
-                              <Label htmlFor="hide-dots">Hide dots</Label>
+                              <Label htmlFor="show-legend">Show Legend</Label>
                               <Switch
-                                id="hide-dots"
-                                checked={hideDots}
-                                onCheckedChange={setHideDots}
+                                id="show-legend"
+                                checked={showLegend}
+                                onCheckedChange={setShowLegend}
                               />
                             </div>
-                          </>
-                        )}
 
-                        {/* Pie chart specific options */}
-                        {chartType === 'pie' && (
-                          <>
+                            {/* Color scheme selection */}
                             <div className="space-y-2">
-                              <Label htmlFor="innerRadius">Inner Radius ({innerRadius})</Label>
-                              <input
-                                id="innerRadius"
-                                type="range"
-                                min="0"
-                                max="80"
-                                value={innerRadius}
-                                onChange={e => setInnerRadius(Number(e.target.value))}
-                                className="w-full"
+                              <Label>Color Scheme</Label>
+                              <div className="flex gap-3">
+                                {(['default', 'pastel', 'vibrant'] as const).map(scheme => (
+                                  <Button
+                                    key={scheme}
+                                    type="button"
+                                    variant={colorScheme === scheme ? 'default' : 'outline'}
+                                    className="flex-1"
+                                    onClick={() => setColorScheme(scheme)}
+                                    size="sm"
+                                  >
+                                    {scheme.charAt(0).toUpperCase() + scheme.slice(1)}
+                                  </Button>
+                                ))}
+                              </div>
+                            </div>
+
+                            {/* Line chart specific options */}
+                            {chartType === 'line' && (
+                              <>
+                                <div className="space-y-2">
+                                  <Label htmlFor="curveType">Curve Type</Label>
+                                  <Select
+                                    value={curveType}
+                                    onValueChange={(value: string) => setCurveType(value as any)}
+                                  >
+                                    <SelectTrigger id="curveType">
+                                      <SelectValue placeholder="Select curve type" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                      <SelectItem value="linear">Linear</SelectItem>
+                                      <SelectItem value="monotone">Smooth</SelectItem>
+                                      <SelectItem value="step">Step</SelectItem>
+                                    </SelectContent>
+                                  </Select>
+                                </div>
+                                <div className="flex items-center justify-between">
+                                  <Label htmlFor="hide-dots">Hide dots</Label>
+                                  <Switch
+                                    id="hide-dots"
+                                    checked={hideDots}
+                                    onCheckedChange={setHideDots}
+                                  />
+                                </div>
+                              </>
+                            )}
+
+                            {/* Pie chart specific options */}
+                            {chartType === 'pie' && (
+                              <>
+                                <div className="space-y-2">
+                                  <Label htmlFor="innerRadius">Inner Radius ({innerRadius})</Label>
+                                  <input
+                                    id="innerRadius"
+                                    type="range"
+                                    min="0"
+                                    max="80"
+                                    value={innerRadius}
+                                    onChange={e => setInnerRadius(Number(e.target.value))}
+                                    className="w-full"
+                                  />
+                                </div>
+                                <div className="space-y-2">
+                                  <Label htmlFor="outerRadius">Outer Radius ({outerRadius})</Label>
+                                  <input
+                                    id="outerRadius"
+                                    type="range"
+                                    min="50"
+                                    max="150"
+                                    value={outerRadius}
+                                    onChange={e => setOuterRadius(Number(e.target.value))}
+                                    className="w-full"
+                                  />
+                                </div>
+                              </>
+                            )}
+                          </div>
+                        </TabsContent>
+
+                        <TabsContent value="table" className="space-y-4 pt-4">
+                          <div className="space-y-4">
+                            <h3 className="text-lg font-medium">
+                              {t('metrics.configurator.tableOptions') || 'Table Options'}
+                            </h3>
+
+                            {/* Table settings */}
+                            <div className="flex items-center justify-between">
+                              <Label htmlFor="show-row-numbers">
+                                {t('metrics.configurator.showRowNumbers') || 'Show row numbers'}
+                              </Label>
+                              <Switch
+                                id="show-row-numbers"
+                                checked={tableView.showRowNumbers}
+                                onCheckedChange={checked =>
+                                  setTableView(prev => ({ ...prev, showRowNumbers: checked }))
+                                }
                               />
                             </div>
+
+                            <div className="flex items-center justify-between">
+                              <Label htmlFor="show-filters">
+                                {t('metrics.configurator.showFilters') || 'Show filters'}
+                              </Label>
+                              <Switch
+                                id="show-filters"
+                                checked={tableView.showFilters}
+                                onCheckedChange={checked =>
+                                  setTableView(prev => ({ ...prev, showFilters: checked }))
+                                }
+                              />
+                            </div>
+
+                            <div className="flex items-center justify-between">
+                              <Label htmlFor="enable-sorting">
+                                {t('metrics.configurator.enableSorting') || 'Enable sorting'}
+                              </Label>
+                              <Switch
+                                id="enable-sorting"
+                                checked={tableView.enableSorting}
+                                onCheckedChange={checked =>
+                                  setTableView(prev => ({ ...prev, enableSorting: checked }))
+                                }
+                              />
+                            </div>
+
+                            <div className="flex items-center justify-between">
+                              <Label htmlFor="enable-pagination">
+                                {t('metrics.configurator.enablePagination') || 'Enable pagination'}
+                              </Label>
+                              <Switch
+                                id="enable-pagination"
+                                checked={tableView.enablePagination}
+                                onCheckedChange={checked =>
+                                  setTableView(prev => ({ ...prev, enablePagination: checked }))
+                                }
+                              />
+                            </div>
+
+                            {/* Page size selection */}
                             <div className="space-y-2">
-                              <Label htmlFor="outerRadius">Outer Radius ({outerRadius})</Label>
-                              <input
-                                id="outerRadius"
-                                type="range"
-                                min="50"
-                                max="150"
-                                value={outerRadius}
-                                onChange={e => setOuterRadius(Number(e.target.value))}
-                                className="w-full"
-                              />
+                              <Label htmlFor="page-size">
+                                {t('metrics.configurator.pageSize') || 'Page size'}
+                              </Label>
+                              <Select
+                                value={tableView.pageSize.toString()}
+                                onValueChange={value =>
+                                  setTableView(prev => ({ ...prev, pageSize: parseInt(value) }))
+                                }
+                              >
+                                <SelectTrigger id="page-size">
+                                  <SelectValue
+                                    placeholder={
+                                      t('metrics.configurator.selectPageSize') || 'Select page size'
+                                    }
+                                  />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="5">5</SelectItem>
+                                  <SelectItem value="10">10</SelectItem>
+                                  <SelectItem value="25">25</SelectItem>
+                                  <SelectItem value="50">50</SelectItem>
+                                  <SelectItem value="100">100</SelectItem>
+                                </SelectContent>
+                              </Select>
                             </div>
-                          </>
-                        )}
+
+                            {/* Density selection */}
+                            <div className="space-y-2">
+                              <Label htmlFor="density">
+                                {t('metrics.configurator.tableDensity') || 'Table density'}
+                              </Label>
+                              <Select
+                                value={tableView.density}
+                                onValueChange={(value: 'default' | 'compact' | 'comfortable') =>
+                                  setTableView(prev => ({ ...prev, density: value }))
+                                }
+                              >
+                                <SelectTrigger id="density">
+                                  <SelectValue
+                                    placeholder={
+                                      t('metrics.configurator.selectDensity') || 'Select density'
+                                    }
+                                  />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="compact">
+                                    {t('metrics.configurator.densityOptions.compact') || 'Compact'}
+                                  </SelectItem>
+                                  <SelectItem value="default">
+                                    {t('metrics.configurator.densityOptions.default') || 'Default'}
+                                  </SelectItem>
+                                  <SelectItem value="comfortable">
+                                    {t('metrics.configurator.densityOptions.comfortable') ||
+                                      'Comfortable'}
+                                  </SelectItem>
+                                </SelectContent>
+                              </Select>
+                            </div>
+
+                            {/* Group by selection */}
+                            <div className="space-y-2">
+                              <Label htmlFor="group-by">
+                                {t('metrics.configurator.groupBy') || 'Group by'}
+                              </Label>
+                              <Select
+                                value={tableView.groupBy}
+                                onValueChange={(
+                                  value: 'year' | 'metric' | 'year-metric' | 'metric-year'
+                                ) => setTableView(prev => ({ ...prev, groupBy: value }))}
+                              >
+                                <SelectTrigger id="group-by">
+                                  <SelectValue
+                                    placeholder={
+                                      t('metrics.configurator.selectGroupBy') || 'Select grouping'
+                                    }
+                                  />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="year">
+                                    {t('metrics.configurator.groupByOptions.year') || 'Year'}
+                                  </SelectItem>
+                                  <SelectItem value="metric">
+                                    {t('metrics.configurator.groupByOptions.metric') || 'Metric'}
+                                  </SelectItem>
+                                  <SelectItem value="year-metric">
+                                    {t('metrics.configurator.groupByOptions.yearMetric') ||
+                                      'Year - Metric'}
+                                  </SelectItem>
+                                  <SelectItem value="metric-year">
+                                    {t('metrics.configurator.groupByOptions.metricYear') ||
+                                      'Metric - Year'}
+                                  </SelectItem>
+                                </SelectContent>
+                              </Select>
+                            </div>
+                          </div>
+                        </TabsContent>
+                      </Tabs>
+
+                      <div className="flex justify-end gap-2 pt-2">
+                        <Button variant="outline" onClick={() => setEditOpen(false)} size="sm">
+                          Cancel
+                        </Button>
+                        <Button onClick={handleUpdateChart} disabled={!chartName} size="sm">
+                          <Save className="mr-2 h-4 w-4" />
+                          Save Changes
+                        </Button>
                       </div>
-                    </TabsContent>
-
-                    <TabsContent value="table" className="space-y-4 pt-4">
-                      <div className="space-y-4">
-                        <h3 className="text-lg font-medium">
-                          {t('metrics.configurator.tableOptions') || 'Table Options'}
-                        </h3>
-
-                        {/* Table settings */}
-                        <div className="flex items-center justify-between">
-                          <Label htmlFor="show-row-numbers">
-                            {t('metrics.configurator.showRowNumbers') || 'Show row numbers'}
-                          </Label>
-                          <Switch
-                            id="show-row-numbers"
-                            checked={tableView.showRowNumbers}
-                            onCheckedChange={checked =>
-                              setTableView(prev => ({ ...prev, showRowNumbers: checked }))
-                            }
-                          />
-                        </div>
-
-                        <div className="flex items-center justify-between">
-                          <Label htmlFor="show-filters">
-                            {t('metrics.configurator.showFilters') || 'Show filters'}
-                          </Label>
-                          <Switch
-                            id="show-filters"
-                            checked={tableView.showFilters}
-                            onCheckedChange={checked =>
-                              setTableView(prev => ({ ...prev, showFilters: checked }))
-                            }
-                          />
-                        </div>
-
-                        <div className="flex items-center justify-between">
-                          <Label htmlFor="enable-sorting">
-                            {t('metrics.configurator.enableSorting') || 'Enable sorting'}
-                          </Label>
-                          <Switch
-                            id="enable-sorting"
-                            checked={tableView.enableSorting}
-                            onCheckedChange={checked =>
-                              setTableView(prev => ({ ...prev, enableSorting: checked }))
-                            }
-                          />
-                        </div>
-
-                        <div className="flex items-center justify-between">
-                          <Label htmlFor="enable-pagination">
-                            {t('metrics.configurator.enablePagination') || 'Enable pagination'}
-                          </Label>
-                          <Switch
-                            id="enable-pagination"
-                            checked={tableView.enablePagination}
-                            onCheckedChange={checked =>
-                              setTableView(prev => ({ ...prev, enablePagination: checked }))
-                            }
-                          />
-                        </div>
-
-                        {/* Page size selection */}
-                        <div className="space-y-2">
-                          <Label htmlFor="page-size">
-                            {t('metrics.configurator.pageSize') || 'Page size'}
-                          </Label>
-                          <Select
-                            value={tableView.pageSize.toString()}
-                            onValueChange={value =>
-                              setTableView(prev => ({ ...prev, pageSize: parseInt(value) }))
-                            }
-                          >
-                            <SelectTrigger id="page-size">
-                              <SelectValue
-                                placeholder={
-                                  t('metrics.configurator.selectPageSize') || 'Select page size'
-                                }
-                              />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="5">5</SelectItem>
-                              <SelectItem value="10">10</SelectItem>
-                              <SelectItem value="25">25</SelectItem>
-                              <SelectItem value="50">50</SelectItem>
-                              <SelectItem value="100">100</SelectItem>
-                            </SelectContent>
-                          </Select>
-                        </div>
-
-                        {/* Density selection */}
-                        <div className="space-y-2">
-                          <Label htmlFor="density">
-                            {t('metrics.configurator.tableDensity') || 'Table density'}
-                          </Label>
-                          <Select
-                            value={tableView.density}
-                            onValueChange={(value: 'default' | 'compact' | 'comfortable') =>
-                              setTableView(prev => ({ ...prev, density: value }))
-                            }
-                          >
-                            <SelectTrigger id="density">
-                              <SelectValue
-                                placeholder={
-                                  t('metrics.configurator.selectDensity') || 'Select density'
-                                }
-                              />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="compact">
-                                {t('metrics.configurator.densityOptions.compact') || 'Compact'}
-                              </SelectItem>
-                              <SelectItem value="default">
-                                {t('metrics.configurator.densityOptions.default') || 'Default'}
-                              </SelectItem>
-                              <SelectItem value="comfortable">
-                                {t('metrics.configurator.densityOptions.comfortable') ||
-                                  'Comfortable'}
-                              </SelectItem>
-                            </SelectContent>
-                          </Select>
-                        </div>
-
-                        {/* Group by selection */}
-                        <div className="space-y-2">
-                          <Label htmlFor="group-by">
-                            {t('metrics.configurator.groupBy') || 'Group by'}
-                          </Label>
-                          <Select
-                            value={tableView.groupBy}
-                            onValueChange={(
-                              value: 'year' | 'metric' | 'year-metric' | 'metric-year'
-                            ) => setTableView(prev => ({ ...prev, groupBy: value }))}
-                          >
-                            <SelectTrigger id="group-by">
-                              <SelectValue
-                                placeholder={
-                                  t('metrics.configurator.selectGroupBy') || 'Select grouping'
-                                }
-                              />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="year">
-                                {t('metrics.configurator.groupByOptions.year') || 'Year'}
-                              </SelectItem>
-                              <SelectItem value="metric">
-                                {t('metrics.configurator.groupByOptions.metric') || 'Metric'}
-                              </SelectItem>
-                              <SelectItem value="year-metric">
-                                {t('metrics.configurator.groupByOptions.yearMetric') ||
-                                  'Year - Metric'}
-                              </SelectItem>
-                              <SelectItem value="metric-year">
-                                {t('metrics.configurator.groupByOptions.metricYear') ||
-                                  'Metric - Year'}
-                              </SelectItem>
-                            </SelectContent>
-                          </Select>
-                        </div>
-                      </div>
-                    </TabsContent>
-                  </Tabs>
-
-                  <div className="flex justify-end gap-2 pt-2">
-                    <Button variant="outline" onClick={() => setEditOpen(false)} size="sm">
-                      Cancel
-                    </Button>
-                    <Button onClick={handleUpdateChart} disabled={!chartName} size="sm">
-                      <Save className="mr-2 h-4 w-4" />
-                      Save Changes
-                    </Button>
-                  </div>
-                </div>
-              </PopoverContent>
-            </Popover>
-          </div>
-        )}
-      </div>
-
-      {isLoading ? (
-        <div className="space-y-2">
-          <Skeleton className="h-8 w-1/3" />
-          <Skeleton className="h-4 w-1/2" />
-          <Skeleton className="h-80 w-full" />
-        </div>
-      ) : chartData ? (
-        <div className="space-y-4">
-          <div>
-            <div className="flex items-center gap-2">
-              <BarChart className="h-6 w-6" />
-              <h1 className="text-3xl font-bold tracking-tight">{chartData.name}</h1>
-            </div>
-            {chartConfig?.description && (
-              <p className="mt-1 text-muted-foreground">{chartConfig.description}</p>
+                    </div>
+                  </PopoverContent>
+                </Popover>
+              </div>
             )}
           </div>
-
-          <Tabs
-            defaultValue="chart"
-            onValueChange={value => setViewMode(value as 'chart' | 'table')}
-          >
-            <TabsList className="mb-4">
-              <TabsTrigger value="chart">Chart</TabsTrigger>
-              <TabsTrigger value="table">Table</TabsTrigger>
-            </TabsList>
-
-            <TabsContent value="chart">
-              <div className="mb-4 flex justify-end">
-                <Button variant="outline" onClick={() => copyEmbedLink('chart')}>
-                  <Link className="mr-2 h-4 w-4" />
-                  {t('library.detail.copyEmbedLink')}
-                </Button>
+          {isLoading ? (
+            <div className="mt-4 space-y-2">
+              <Skeleton className="h-8 w-1/3" />
+              <Skeleton className="h-4 w-1/2" />
+            </div>
+          ) : chartData ? (
+            <>
+              <div className="mt-2 flex items-center gap-2">
+                <BarChart className="h-6 w-6" />
+                <CardTitle className="text-3xl font-bold tracking-tight">
+                  {chartData.name}
+                </CardTitle>
               </div>
-              <div className="h-80">
+              {chartConfig?.description && (
+                <CardDescription className="mt-1">{chartConfig.description}</CardDescription>
+              )}
+            </>
+          ) : null}
+        </CardHeader>
+        <CardContent className="pt-6">
+          {isLoading ? (
+            <div className="space-y-2">
+              <Skeleton className="h-80 w-full" />
+            </div>
+          ) : chartData ? (
+            <Tabs defaultValue="chart">
+              <div className="mb-4 flex justify-center">
+                <TabsList>
+                  <TabsTrigger value="chart">Chart</TabsTrigger>
+                  <TabsTrigger value="table">Table</TabsTrigger>
+                  <TabsTrigger value="api">API</TabsTrigger>
+                </TabsList>
+              </div>
+              <TabsContent value="chart">
+                <div className="mb-4 flex justify-end">
+                  <Button variant="outline" onClick={() => copyEmbedLink('chart')}>
+                    <Link className="mr-2 h-4 w-4" />
+                    {t('library.detail.copyEmbedLink')}
+                  </Button>
+                </div>
+                <div className="h-80">
+                  {selectedMetrics.length > 0 ? (
+                    <RenderChart
+                      metricIds={editOpen ? selectedMetrics : chartData.metrics}
+                      chartType={editOpen ? chartType : chartConfig?.type || 'line'}
+                      dateRange={
+                        editOpen
+                          ? previewDateRange
+                          : {
+                              from: chartConfig?.dateRange?.from
+                                ? new Date(chartConfig.dateRange.from)
+                                : undefined,
+                              to: chartConfig?.dateRange?.to
+                                ? new Date(chartConfig.dateRange.to)
+                                : undefined,
+                            }
+                      }
+                      showLegend={editOpen ? showLegend : chartConfig?.showLegend || true}
+                      colorScheme={editOpen ? colorScheme : chartConfig?.colorScheme || 'default'}
+                      curveType={editOpen ? curveType : chartConfig?.curveType}
+                      innerRadius={editOpen ? innerRadius : chartConfig?.innerRadius}
+                      outerRadius={editOpen ? outerRadius : chartConfig?.outerRadius}
+                      stacked={editOpen ? stacked : chartConfig?.stacked || false}
+                      regionIds={editOpen ? selectedRegions : chartData.regions}
+                      hideDots={editOpen ? hideDots : chartConfig?.hideDots || false}
+                      aggregation="none"
+                    />
+                  ) : (
+                    <div className="flex h-full items-center justify-center">
+                      <p className="text-muted-foreground">
+                        {t('metrics.configurator.selectMetricsToPreview')}
+                      </p>
+                    </div>
+                  )}
+                </div>
+              </TabsContent>
+              <TabsContent value="table">
+                <div className="mb-4 flex justify-end">
+                  <Button variant="outline" onClick={() => copyEmbedLink('table')}>
+                    <Link className="mr-2 h-4 w-4" />
+                    {t('library.detail.copyEmbedLink')}
+                  </Button>
+                </div>
                 {selectedMetrics.length > 0 ? (
-                  <RenderChart
+                  <RenderTable
                     metricIds={editOpen ? selectedMetrics : chartData.metrics}
-                    chartType={editOpen ? chartType : chartConfig?.type || 'line'}
                     dateRange={
                       editOpen
                         ? previewDateRange
@@ -798,15 +827,21 @@ export default function ChartDetailPage() {
                               : undefined,
                           }
                     }
-                    showLegend={editOpen ? showLegend : chartConfig?.showLegend || true}
-                    colorScheme={editOpen ? colorScheme : chartConfig?.colorScheme || 'default'}
-                    curveType={editOpen ? curveType : chartConfig?.curveType}
-                    innerRadius={editOpen ? innerRadius : chartConfig?.innerRadius}
-                    outerRadius={editOpen ? outerRadius : chartConfig?.outerRadius}
-                    stacked={editOpen ? stacked : chartConfig?.stacked || false}
                     regionIds={editOpen ? selectedRegions : chartData.regions}
-                    hideDots={editOpen ? hideDots : chartConfig?.hideDots || false}
-                    aggregation="none"
+                    tableConfig={
+                      editOpen
+                        ? tableView
+                        : chartConfig?.tableView || {
+                            showRowNumbers: true,
+                            showFilters: true,
+                            pageSize: 10,
+                            enableSorting: true,
+                            enablePagination: true,
+                            density: 'default',
+                            groupBy: 'year-metric',
+                          }
+                    }
+                    onConfigChange={newConfig => setTableView(newConfig)}
                   />
                 ) : (
                   <div className="flex h-full items-center justify-center">
@@ -815,62 +850,149 @@ export default function ChartDetailPage() {
                     </p>
                   </div>
                 )}
-              </div>
-            </TabsContent>
+              </TabsContent>
+              <TabsContent value="api">
+                <div className="space-y-6">
+                  <div>
+                    <h3 className="mb-2 text-lg font-semibold">API Integration</h3>
+                    <p className="mb-4 text-sm text-muted-foreground">
+                      Use our REST API to integrate this dataset into your application.
+                    </p>
+                  </div>
 
-            <TabsContent value="table">
-              <div className="mb-4 flex justify-end">
-                <Button variant="outline" onClick={() => copyEmbedLink('table')}>
-                  <Link className="mr-2 h-4 w-4" />
-                  {t('library.detail.copyEmbedLink')}
-                </Button>
-              </div>
-              {selectedMetrics.length > 0 ? (
-                <RenderTable
-                  metricIds={editOpen ? selectedMetrics : chartData.metrics}
-                  dateRange={
-                    editOpen
-                      ? previewDateRange
-                      : {
-                          from: chartConfig?.dateRange?.from
-                            ? new Date(chartConfig.dateRange.from)
-                            : undefined,
-                          to: chartConfig?.dateRange?.to
-                            ? new Date(chartConfig.dateRange.to)
-                            : undefined,
-                        }
-                  }
-                  regionIds={editOpen ? selectedRegions : chartData.regions}
-                  tableConfig={
-                    editOpen
-                      ? tableView
-                      : chartConfig?.tableView || {
-                          showRowNumbers: true,
-                          showFilters: true,
-                          pageSize: 10,
-                          enableSorting: true,
-                          enablePagination: true,
-                          density: 'default',
-                          groupBy: 'year-metric',
-                        }
-                  }
-                  onConfigChange={newConfig => setTableView(newConfig)}
-                />
-              ) : (
-                <div className="flex h-full items-center justify-center">
-                  <p className="text-muted-foreground">
-                    {t('metrics.configurator.selectMetricsToPreview')}
-                  </p>
+                  <div>
+                    <h4 className="text-md mb-2 font-medium">Endpoint</h4>
+                    <div className="rounded-md bg-muted p-2 font-mono text-sm">
+                      GET /api/metrics/data
+                    </div>
+                  </div>
+
+                  <div>
+                    <h4 className="text-md mb-2 font-medium">Query Parameters</h4>
+                    <div className="divide-y rounded-md border">
+                      <div className="grid grid-cols-3 p-2">
+                        <div className="font-medium">Parameter</div>
+                        <div className="font-medium">Description</div>
+                        <div className="font-medium">Example</div>
+                      </div>
+                      <div className="grid grid-cols-3 p-2">
+                        <div className="font-mono text-sm">chart_id</div>
+                        <div className="text-sm">The ID of this chart</div>
+                        <div className="font-mono text-sm">{chartId}</div>
+                      </div>
+                      <div className="grid grid-cols-3 p-2">
+                        <div className="font-mono text-sm">metrics</div>
+                        <div className="text-sm">Comma-separated metric IDs</div>
+                        <div className="font-mono text-sm">{chartData?.metrics.join(',')}</div>
+                      </div>
+                      <div className="grid grid-cols-3 p-2">
+                        <div className="font-mono text-sm">regions</div>
+                        <div className="text-sm">Comma-separated region IDs (optional)</div>
+                        <div className="font-mono text-sm">
+                          {chartData?.regions?.join(',') || 'all'}
+                        </div>
+                      </div>
+                      <div className="grid grid-cols-3 p-2">
+                        <div className="font-mono text-sm">from</div>
+                        <div className="text-sm">Start date (ISO format)</div>
+                        <div className="font-mono text-sm">
+                          {chartConfig?.dateRange?.from ||
+                            new Date(yearRange[0], 0, 1).toISOString()}
+                        </div>
+                      </div>
+                      <div className="grid grid-cols-3 p-2">
+                        <div className="font-mono text-sm">to</div>
+                        <div className="text-sm">End date (ISO format)</div>
+                        <div className="font-mono text-sm">
+                          {chartConfig?.dateRange?.to ||
+                            new Date(yearRange[1], 11, 31).toISOString()}
+                        </div>
+                      </div>
+                      <div className="grid grid-cols-3 p-2">
+                        <div className="font-mono text-sm">format</div>
+                        <div className="text-sm">Response format (json or csv)</div>
+                        <div className="font-mono text-sm">json</div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div>
+                    <h4 className="text-md mb-2 font-medium">Example Request</h4>
+                    <div className="overflow-x-auto rounded-md bg-muted p-2 font-mono text-sm">
+                      {`fetch('/api/metrics/data?chart_id=${chartId}&metrics=${chartData?.metrics.join(',')}&from=${encodeURIComponent(
+                        chartConfig?.dateRange?.from || new Date(yearRange[0], 0, 1).toISOString()
+                      )}&to=${encodeURIComponent(
+                        chartConfig?.dateRange?.to || new Date(yearRange[1], 11, 31).toISOString()
+                      )}')`}
+                    </div>
+                  </div>
+
+                  <div>
+                    <h4 className="text-md mb-2 font-medium">Example Response</h4>
+                    <div className="overflow-x-auto rounded-md bg-muted p-2 font-mono text-sm">
+                      {`{
+  "data": [
+    {
+      "metric_id": "${chartData?.metrics[0] || 'metric-id'}",
+      "metric_name": "Example Metric",
+      "region_id": "${chartData?.regions?.[0] || 'region-id'}",
+      "region_name": "Example Region",
+      "year": ${yearRange[0]},
+      "value": 42.5
+    },
+    // Additional data points...
+  ],
+  "metadata": {
+    "chart_id": "${chartId}",
+    "chart_name": "${chartData?.name || 'Chart Name'}",
+    "metrics_count": ${chartData?.metrics.length || 0},
+    "regions_count": ${chartData?.regions?.length || 0},
+    "date_range": {
+      "from": "${chartConfig?.dateRange?.from || new Date(yearRange[0], 0, 1).toISOString()}",
+      "to": "${chartConfig?.dateRange?.to || new Date(yearRange[1], 11, 31).toISOString()}"
+    }
+  }
+}`}
+                    </div>
+                  </div>
+
+                  <div>
+                    <h4 className="text-md mb-2 font-medium">Authentication</h4>
+                    <p className="mb-2 text-sm">
+                      API requests require authentication using an API key.
+                    </p>
+                    <div className="rounded-md bg-muted p-2 font-mono text-sm">
+                      {`fetch('/api/metrics/data?chart_id=${chartId}', {
+  headers: {
+    'Authorization': 'Bearer YOUR_API_KEY'
+  }
+})`}
+                    </div>
+                    <p className="mt-2 text-sm">
+                      You can generate an API key in your account settings.
+                    </p>
+                  </div>
+
+                  <div>
+                    <h4 className="text-md mb-2 font-medium">Rate Limits</h4>
+                    <p className="text-sm">
+                      Free tier: 100 requests/hour
+                      <br />
+                      Premium tier: 1,000 requests/hour
+                      <br />
+                      Enterprise tier: Unlimited requests
+                    </p>
+                  </div>
                 </div>
-              )}
-            </TabsContent>
-          </Tabs>
-        </div>
-      ) : (
-        <div className="flex h-96 items-center justify-center">
-          <p className="text-muted-foreground">{t('library.detail.chartNotFound')}</p>
-        </div>
-      )}
+              </TabsContent>
+            </Tabs>
+          ) : (
+            <div className="flex h-96 items-center justify-center">
+              <p className="text-muted-foreground">{t('library.detail.chartNotFound')}</p>
+            </div>
+          )}
+        </CardContent>
+      </Card>
     </div>
   );
 }

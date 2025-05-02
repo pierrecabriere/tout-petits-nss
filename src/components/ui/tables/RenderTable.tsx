@@ -75,6 +75,19 @@ type TableViewConfig = {
   groupBy: GroupByOption;
 };
 
+// Helper function to generate all years in range
+function getAllYearsInRange(from: Date, to: Date): string[] {
+  const years: string[] = [];
+  const startYear = from.getFullYear();
+  const endYear = to.getFullYear();
+
+  for (let year = startYear; year <= endYear; year++) {
+    years.push(year.toString());
+  }
+
+  return years;
+}
+
 // Base table configuration
 type RenderTableProps = {
   metricIds: string[];
@@ -237,27 +250,30 @@ export default function RenderTable({
         groupKeyToColumn: {},
         yearMetricStructure: { years: [], metricsByYear: {} },
         metricYearStructure: { metrics: [], yearsByMetric: {} },
+        emptyColumns: new Set<string>(),
       };
 
     const grouped: GroupedTableData[] = [];
     const regions = new Set<string>();
     const groupKeys = new Set<string>();
     const groupKeyToColumn: Record<string, { year?: string; metric?: string }> = {};
+    // Track columns with no data
+    const emptyColumns = new Set<string>();
+
+    // Generate all years in range
+    const allYears =
+      dateRange.from && dateRange.to ? getAllYearsInRange(dateRange.from, dateRange.to) : [];
 
     // For year-metric and metric-year hierarchical structures
-    const years = new Set<string>();
+    const years = new Set<string>(allYears);
     const metrics = new Set<string>();
     const metricsByYear: Record<string, string[]> = {};
     const yearsByMetric: Record<string, string[]> = {};
 
-    // Get unique regions, years, and metrics
+    // Get unique regions and metrics
     tableData.forEach(data => {
       if (data.region) {
         regions.add(data.region);
-      }
-
-      if (data.year) {
-        years.add(data.year);
       }
 
       if (data.metric) {
@@ -271,54 +287,57 @@ export default function RenderTable({
         metricsByYear[year] = [];
       });
 
-      tableData.forEach(data => {
-        if (data.year && data.metric && !metricsByYear[data.year].includes(data.metric)) {
-          metricsByYear[data.year].push(data.metric);
-        }
+      // First add all metrics to all years
+      Array.from(years).forEach(year => {
+        Array.from(metrics).forEach(metric => {
+          if (!metricsByYear[year].includes(metric)) {
+            metricsByYear[year].push(metric);
+          }
+        });
       });
     }
 
     // For metric-year group, organize years by metric
     if (tableConfig.groupBy === 'metric-year') {
       Array.from(metrics).forEach(metric => {
-        yearsByMetric[metric] = [];
-      });
-
-      tableData.forEach(data => {
-        if (data.year && data.metric && !yearsByMetric[data.metric].includes(data.year)) {
-          yearsByMetric[data.metric].push(data.year);
-        }
+        yearsByMetric[metric] = [...allYears];
       });
     }
 
     // Generate group keys based on groupBy option
-    tableData.forEach(data => {
-      let groupKey: string;
+    // For year and year-metric, use all years in range
+    if (tableConfig.groupBy === 'year') {
+      allYears.forEach(year => {
+        const groupKey = year;
+        groupKeys.add(groupKey);
+        groupKeyToColumn[groupKey] = { year };
+      });
+    } else if (tableConfig.groupBy === 'metric') {
+      Array.from(metrics).forEach(metric => {
+        const groupKey = metric;
+        groupKeys.add(groupKey);
+        groupKeyToColumn[groupKey] = { metric };
+      });
+    } else if (tableConfig.groupBy === 'year-metric') {
+      allYears.forEach(year => {
+        Array.from(metrics).forEach(metric => {
+          const groupKey = `${year} - ${metric}`;
+          groupKeys.add(groupKey);
+          groupKeyToColumn[groupKey] = { year, metric };
+        });
+      });
+    } else if (tableConfig.groupBy === 'metric-year') {
+      Array.from(metrics).forEach(metric => {
+        allYears.forEach(year => {
+          const groupKey = `${metric} - ${year}`;
+          groupKeys.add(groupKey);
+          groupKeyToColumn[groupKey] = { metric, year };
+        });
+      });
+    }
 
-      switch (tableConfig.groupBy) {
-        case 'year':
-          groupKey = data.year;
-          groupKeyToColumn[groupKey] = { year: data.year };
-          break;
-        case 'metric':
-          groupKey = data.metric;
-          groupKeyToColumn[groupKey] = { metric: data.metric };
-          break;
-        case 'year-metric':
-          groupKey = `${data.year} - ${data.metric}`;
-          groupKeyToColumn[groupKey] = { year: data.year, metric: data.metric };
-          break;
-        case 'metric-year':
-          groupKey = `${data.metric} - ${data.year}`;
-          groupKeyToColumn[groupKey] = { metric: data.metric, year: data.year };
-          break;
-        default:
-          groupKey = `${data.year} - ${data.metric}`;
-          groupKeyToColumn[groupKey] = { year: data.year, metric: data.metric };
-      }
-
-      groupKeys.add(groupKey);
-    });
+    // Create a map to track which columns have data
+    const columnsWithData = new Set<string>();
 
     // Create a row for each region
     for (const region of regions) {
@@ -355,11 +374,19 @@ export default function RenderTable({
           }
 
           row[groupKey] = `${data.value} ${data.unit}`;
+          columnsWithData.add(groupKey);
         }
       });
 
       grouped.push(row);
     }
+
+    // Identify columns without data (to be grayed out)
+    groupKeys.forEach(key => {
+      if (!columnsWithData.has(key)) {
+        emptyColumns.add(key);
+      }
+    });
 
     return {
       data: grouped,
@@ -373,8 +400,9 @@ export default function RenderTable({
         metrics: Array.from(metrics),
         yearsByMetric,
       },
+      emptyColumns,
     };
-  }, [tableData, tableConfig.groupBy]);
+  }, [tableData, tableConfig.groupBy, dateRange]);
 
   // Define columns for TanStack Table
   const columns = useMemo<ColumnDef<GroupedTableData>[]>(() => {
@@ -432,6 +460,7 @@ export default function RenderTable({
         // For each metric in this year, create a column
         metrics.forEach(metric => {
           const groupKey = `${year} - ${metric}`;
+          const isEmpty = groupedData.emptyColumns.has(groupKey);
 
           cols.push({
             id: groupKey,
@@ -440,7 +469,9 @@ export default function RenderTable({
             meta: {
               year,
               metric,
+              isEmpty,
             },
+            cell: info => (info.getValue() as string) || '',
           });
         });
       });
@@ -454,6 +485,7 @@ export default function RenderTable({
         // For each year for this metric, create a column
         years.forEach(year => {
           const groupKey = `${metric} - ${year}`;
+          const isEmpty = groupedData.emptyColumns.has(groupKey);
 
           cols.push({
             id: groupKey,
@@ -462,7 +494,9 @@ export default function RenderTable({
             meta: {
               year,
               metric,
+              isEmpty,
             },
+            cell: info => (info.getValue() as string) || '',
           });
         });
       });
@@ -470,6 +504,7 @@ export default function RenderTable({
       // Normal columns for other grouping options
       groupedData.groupKeys.forEach((groupKey: string) => {
         const columnInfo = groupedData.groupKeyToColumn[groupKey] || {};
+        const isEmpty = groupedData.emptyColumns.has(groupKey);
 
         let headerLabel = groupKey;
         if (columnInfo.year) {
@@ -497,6 +532,10 @@ export default function RenderTable({
               );
             }
             return headerLabel;
+          },
+          cell: info => (info.getValue() as string) || '',
+          meta: {
+            isEmpty,
           },
         });
       });
@@ -624,15 +663,29 @@ export default function RenderTable({
             headerGroups.length > 0 && (
               <thead className="bg-muted/50 [&_tr]:border-b">
                 <tr className="border-b transition-colors">
-                  {headerGroups.map(group => (
-                    <th
-                      key={group.id}
-                      colSpan={group.colSpan}
-                      className="h-12 border-r px-2 text-center align-middle text-sm font-bold uppercase tracking-wider text-foreground last:border-r-0"
-                    >
-                      {group.title}
-                    </th>
-                  ))}
+                  {headerGroups.map(group => {
+                    // Check if this is a year group that's empty
+                    const isEmptyGroup =
+                      tableConfig.groupBy === 'year-metric' &&
+                      group.title &&
+                      group.id.startsWith('year-')
+                        ? Array.from(groupedData.emptyColumns).some(key =>
+                            key.startsWith(`${group.title} - `)
+                          )
+                        : false;
+
+                    return (
+                      <th
+                        key={group.id}
+                        colSpan={group.colSpan}
+                        className={`h-12 border-r px-2 text-center align-middle text-sm font-bold uppercase tracking-wider text-foreground last:border-r-0 ${
+                          isEmptyGroup ? 'bg-gray-100 text-gray-400' : ''
+                        }`}
+                      >
+                        {group.title}
+                      </th>
+                    );
+                  })}
                 </tr>
               </thead>
             )}
@@ -641,16 +694,23 @@ export default function RenderTable({
           <TableHeader className="bg-muted/30">
             {table.getHeaderGroups().map(headerGroup => (
               <TableRow key={headerGroup.id}>
-                {headerGroup.headers.map(header => (
-                  <TableHead
-                    key={header.id}
-                    className="h-10 border-r font-semibold last:border-r-0"
-                  >
-                    {header.isPlaceholder
-                      ? null
-                      : flexRender(header.column.columnDef.header, header.getContext())}
-                  </TableHead>
-                ))}
+                {headerGroup.headers.map(header => {
+                  // Check if this column is empty
+                  const isEmptyColumn = (header.column.columnDef.meta as any)?.isEmpty;
+
+                  return (
+                    <TableHead
+                      key={header.id}
+                      className={`h-10 border-r font-semibold last:border-r-0 ${
+                        isEmptyColumn ? 'bg-gray-100' : ''
+                      }`}
+                    >
+                      {header.isPlaceholder
+                        ? null
+                        : flexRender(header.column.columnDef.header, header.getContext())}
+                    </TableHead>
+                  );
+                })}
               </TableRow>
             ))}
           </TableHeader>
@@ -666,16 +726,19 @@ export default function RenderTable({
                     // Check if this is a header cell
                     const isRowHeader = (cell.column.columnDef.meta as any)?.isRowHeader;
                     const isSticky = (cell.column.columnDef.meta as any)?.isSticky;
+                    const isEmptyColumn = (cell.column.columnDef.meta as any)?.isEmpty;
                     const isEvenRow = rowIndex % 2 === 0;
 
                     return (
                       <TableCell
                         key={cell.id}
-                        className={` ${getDensityClass()} border-r last:border-r-0 ${isRowHeader ? 'font-medium' : ''} ${
+                        className={` ${getDensityClass()} border-r last:border-r-0 ${
+                          isRowHeader ? 'font-medium' : ''
+                        } ${
                           isSticky
                             ? `sticky left-0 z-10 ${isEvenRow ? 'bg-white' : 'bg-gray-50'} shadow-[1px_0_0_0_#e5e5e5]`
                             : ''
-                        } `}
+                        } ${isEmptyColumn ? 'bg-gray-100 text-gray-400' : ''} `}
                       >
                         {flexRender(cell.column.columnDef.cell, cell.getContext())}
                       </TableCell>

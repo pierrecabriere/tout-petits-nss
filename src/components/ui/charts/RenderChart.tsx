@@ -42,7 +42,7 @@ type BaseChartConfig = {
   };
   showLegend: boolean;
   showAxisLabels?: boolean;
-  colorScheme: 'default' | 'pastel' | 'vibrant';
+  colorScheme: 'default' | 'pastel' | 'vibrant' | 'orange';
   aggregation: 'none' | 'sum' | 'avg' | 'min' | 'max';
   regionIds?: string[];
   hideDots?: boolean;
@@ -81,6 +81,8 @@ const COLOR_SCHEMES: ColorScheme = {
   pastel: ['#93c5fd', '#86efac', '#fdba74', '#c4b5fd', '#fda4af', '#a5f3fc', '#fde68a'],
   // Versions plus vives, saturées de ces mêmes couleurs
   vibrant: ['#3b82f6', '#22c55e', '#f97316', '#a855f7', '#f43f5e', '#06b6d4', '#ca8a04'],
+  // Custom scheme starting with #f16b1e
+  orange: ['#f16b1e', '#3498db', '#2ecc71', '#9b59b6', '#e74c3c', '#1abc9c', '#f39c12'],
 };
 
 export default function RenderChart(props: RenderChartProps) {

@@ -18,16 +18,11 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { useQuery } from '@tanstack/react-query';
 import supabaseClient from '@/lib/supabase-client';
-import { Tables } from '@/types/database';
-import { Skeleton } from '@/components/ui/skeleton';
 import { Input } from '@/components/ui/input';
-import { Check, CalendarIcon, Save, ChevronDown, Search } from 'lucide-react';
+import { Save } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
-import { Separator } from '@/components/ui/separator';
-import { format } from 'date-fns';
 import {
   Dialog,
   DialogContent,
@@ -38,11 +33,7 @@ import {
   DialogTrigger,
 } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
-import { Calendar } from '@/components/ui/calendar';
-import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover';
 import RenderChart from '@/components/ui/charts/RenderChart';
-import { Checkbox } from '@/components/ui/checkbox';
-import { cn } from '@/lib/utils';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { MetricTreeSelector } from '@/components/ui/metric-tree-selector';
 import {
@@ -103,7 +94,9 @@ export default function ConfiguratorPage() {
 
   // Chart specific configuration
   const [showLegend, setShowLegend] = useState(true);
-  const [colorScheme, setColorScheme] = useState<'default' | 'pastel' | 'vibrant'>('default');
+  const [colorScheme, setColorScheme] = useState<'default' | 'pastel' | 'vibrant' | 'orange'>(
+    'default'
+  );
   const [curveType, setCurveType] = useState<'linear' | 'monotone' | 'step'>('monotone');
   const [innerRadius, setInnerRadius] = useState<number>(0);
   const [outerRadius, setOuterRadius] = useState<number>(80);
@@ -167,7 +160,7 @@ export default function ConfiguratorPage() {
   const handleSaveChart = async () => {
     try {
       // Create chart record with metrics embedded in the config
-      const { data: chart, error } = await supabaseClient
+      const { error } = await supabaseClient
         .from('charts')
         .insert({
           name: chartName,
@@ -227,21 +220,26 @@ export default function ConfiguratorPage() {
   };
 
   return (
-    <div className="space-y-4">
-      <div>
-        <h1 className="text-3xl font-bold tracking-tight">{t('metrics.configurator.title')}</h1>
-        <p className="text-muted-foreground">{t('metrics.configurator.description')}</p>
-      </div>
+    <section className="mx-auto max-w-screen-lg px-4 py-8">
+      <header className="mb-8">
+        <h1 className="mb-2 text-3xl font-bold tracking-tight">
+          {t('metrics.configurator.title')}
+        </h1>
+        <p className="mb-0 text-lg text-muted-foreground">
+          {t('metrics.configurator.description')}
+        </p>
+      </header>
 
-      {/* Single main content card */}
-      <Card>
-        <CardHeader>
-          <CardTitle>{t('metrics.configurator.chartConfiguration')}</CardTitle>
+      <Card className="mb-8">
+        <CardHeader className="pb-4">
+          <CardTitle className="mb-1 text-xl font-semibold">
+            {t('metrics.configurator.chartConfiguration')}
+          </CardTitle>
           <CardDescription>{t('metrics.configurator.configureCustomize')}</CardDescription>
         </CardHeader>
-        <CardContent className="space-y-6">
+        <CardContent className="pt-0">
           <Tabs defaultValue="default" onValueChange={setActiveTab} value={activeTab}>
-            <TabsList className="grid w-full grid-cols-3">
+            <TabsList className="mb-4 grid w-full grid-cols-3">
               <TabsTrigger value="default">{t('metrics.configurator.basicSettings')}</TabsTrigger>
               <TabsTrigger value="options">{t('metrics.configurator.chartOptions')}</TabsTrigger>
               <TabsTrigger value="table">{t('metrics.configurator.tableOptions')}</TabsTrigger>
@@ -392,7 +390,7 @@ export default function ConfiguratorPage() {
                   <Label htmlFor="chartType">{t('metrics.configurator.chartType')}</Label>
                   <Select
                     value={chartType}
-                    onValueChange={(value: string) => setChartType(value as any)}
+                    onValueChange={(value: 'line' | 'area' | 'bar' | 'pie') => setChartType(value)}
                   >
                     <SelectTrigger id="chartType">
                       <SelectValue placeholder={t('metrics.configurator.selectChartType')} />
@@ -424,7 +422,7 @@ export default function ConfiguratorPage() {
                 <div className="space-y-2">
                   <Label>{t('metrics.configurator.colorScheme')}</Label>
                   <div className="flex gap-3">
-                    {(['default', 'pastel', 'vibrant'] as const).map(scheme => (
+                    {(['default', 'pastel', 'vibrant', 'orange'] as const).map(scheme => (
                       <Button
                         key={scheme}
                         type="button"
@@ -718,58 +716,60 @@ export default function ConfiguratorPage() {
             </TabsContent>
           </Tabs>
         </CardContent>
-        <CardFooter className="flex justify-end">
-          <Dialog open={saveDialogOpen} onOpenChange={setSaveDialogOpen}>
-            <DialogTrigger asChild>
-              <Button disabled={selectedMetrics.length === 0}>
-                <Save className="mr-2 h-4 w-4" />
-                {t('metrics.configurator.saveToLibrary')}
-              </Button>
-            </DialogTrigger>
-            <DialogContent>
-              <DialogHeader>
-                <DialogTitle>{t('metrics.configurator.saveChartToLibrary')}</DialogTitle>
-                <DialogDescription>
-                  {t('metrics.configurator.saveChartDescription')}
-                </DialogDescription>
-              </DialogHeader>
-              <div className="space-y-4 py-4">
-                <div className="space-y-2">
-                  <Label htmlFor="chart-name">{t('metrics.configurator.chartName')}</Label>
-                  <Input
-                    id="chart-name"
-                    value={chartName}
-                    onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
-                      setChartName(e.target.value)
-                    }
-                    placeholder={t('metrics.configurator.enterChartName')}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="chart-description">{t('metrics.configurator.description')}</Label>
-                  <Textarea
-                    id="chart-description"
-                    value={chartDescription}
-                    onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) =>
-                      setChartDescription(e.target.value)
-                    }
-                    placeholder={t('metrics.configurator.enterChartDescription')}
-                    rows={3}
-                  />
-                </div>
-              </div>
-              <DialogFooter>
-                <Button variant="outline" onClick={() => setSaveDialogOpen(false)}>
-                  {t('metrics.configurator.cancel')}
-                </Button>
-                <Button onClick={handleSaveChart} disabled={!chartName}>
-                  {t('metrics.configurator.saveChart')}
-                </Button>
-              </DialogFooter>
-            </DialogContent>
-          </Dialog>
-        </CardFooter>
       </Card>
-    </div>
+
+      {/* Save to Library Dialog */}
+      <div className="flex justify-end pt-4">
+        <Dialog open={saveDialogOpen} onOpenChange={setSaveDialogOpen}>
+          <DialogTrigger asChild>
+            <Button disabled={selectedMetrics.length === 0}>
+              <Save className="mr-2 h-4 w-4" />
+              {t('metrics.configurator.saveToLibrary')}
+            </Button>
+          </DialogTrigger>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>{t('metrics.configurator.saveChartToLibrary')}</DialogTitle>
+              <DialogDescription>
+                {t('metrics.configurator.saveChartDescription')}
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-4 py-4">
+              <div className="space-y-2">
+                <Label htmlFor="chart-name">{t('metrics.configurator.chartName')}</Label>
+                <Input
+                  id="chart-name"
+                  value={chartName}
+                  onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                    setChartName(e.target.value)
+                  }
+                  placeholder={t('metrics.configurator.enterChartName')}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="chart-description">{t('metrics.configurator.description')}</Label>
+                <Textarea
+                  id="chart-description"
+                  value={chartDescription}
+                  onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) =>
+                    setChartDescription(e.target.value)
+                  }
+                  placeholder={t('metrics.configurator.enterChartDescription')}
+                  rows={3}
+                />
+              </div>
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setSaveDialogOpen(false)}>
+                {t('metrics.configurator.cancel')}
+              </Button>
+              <Button onClick={handleSaveChart} disabled={!chartName}>
+                {t('metrics.configurator.saveChart')}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      </div>
+    </section>
   );
 }

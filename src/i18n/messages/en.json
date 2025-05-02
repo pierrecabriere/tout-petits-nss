@@ -43,7 +43,10 @@
     "allDates": "All dates",
     "allRegions": "All regions",
     "allYears": "All Years",
-    "resetFilters": "Reset filters"
+    "resetFilters": "Reset filters",
+    "cancel": "Cancel",
+    "save": "Save",
+    "saving": "Saving..."
   },
   "navigation": {
     "home": "Home",
@@ -93,7 +96,20 @@
       "noDataYet": "No data yet",
       "parentMetric": "Parent metric",
       "viewDetails": "View details",
-      "viewData": "View data"
+      "viewData": "View data",
+      "edit": "Edit"
+    },
+    "edit": {
+      "title": "Edit Metric",
+      "description": "Modify metric properties and metadata",
+      "name": "Name",
+      "description": "Description",
+      "unit": "Unit",
+      "domain": "Domain",
+      "category": "Category",
+      "subcategory": "Subcategory",
+      "success": "Metric updated successfully",
+      "error": "Failed to update metric"
     },
     "detail": {
       "backToExplorer": "Back to Explorer",

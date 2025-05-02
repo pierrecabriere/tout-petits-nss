@@ -17,15 +17,18 @@
     "allDates": "Toutes les dates",
     "allRegions": "Toutes les régions",
     "allYears": "Toutes les années",
-    "resetFilters": "Réinitialiser les filtres"
+    "resetFilters": "Réinitialiser les filtres",
+    "cancel": "Annuler",
+    "save": "Enregistrer",
+    "saving": "Enregistrement..."
   },
   "navigation": {
     "home": "Accueil",
     "mainMenu": "Menu principal",
     "todos": "Tâches",
-    "explorer": "Explorateur",
-    "configurator": "Configurateur",
-    "library": "Bibliothèque"
+    "explorer": "Indicateurs",
+    "configurator": "Nouveau jeu de données",
+    "library": "Jeu de données"
   },
   "settings": {
     "title": "Paramètres",
@@ -79,8 +82,8 @@
     "searchPlaceholder": "Rechercher des métriques...",
     "noResults": "Aucune métrique trouvée",
     "explorer": {
-      "title": "Explorateur de Métriques",
-      "description": "Parcourir et analyser les métriques disponibles",
+      "title": "Indicateurs de Métriques",
+      "description": "Parcourir et analyser les indicateurs disponibles",
       "treeView": "Parcourir les métriques dans une vue hiérarchique",
       "gridView": "Vue en grille",
       "searchPlaceholder": "Rechercher des métriques...",
@@ -93,7 +96,20 @@
       "noDataYet": "Pas encore de données",
       "parentMetric": "Métrique parente",
       "viewDetails": "Voir les détails",
-      "viewData": "Voir les données"
+      "viewData": "Voir les données",
+      "edit": "Modifier"
+    },
+    "edit": {
+      "title": "Modifier la Métrique",
+      "description": "Modifier les propriétés et métadonnées de la métrique",
+      "name": "Nom",
+      "description": "Description",
+      "unit": "Unité",
+      "domain": "Dimension",
+      "category": "Catégorie",
+      "subcategory": "Sous dimension",
+      "success": "Métrique mise à jour avec succès",
+      "error": "Échec de la mise à jour de la métrique"
     },
     "detail": {
       "backToExplorer": "Retour à l'Explorateur",
@@ -109,7 +125,7 @@
       "sortDesc": "Tri décroissant"
     },
     "configurator": {
-      "title": "Configurateur de Graphiques",
+      "title": "Nouveau Jeu de Données de Graphiques",
       "description": "Créer et personnaliser des graphiques",
       "createChart": "Créer un Graphique",
       "selectMetrics": "Sélectionner les Métriques",
@@ -194,17 +210,17 @@
       }
     },
     "library": {
-      "title": "Bibliothèque de Graphiques",
-      "description": "Parcourir et gérer vos graphiques",
+      "title": "Jeu de Données de Graphiques",
+      "description": "Parcourir et gérer vos jeux de données",
       "noCharts": "Aucun graphique trouvé",
-      "searchPlaceholder": "Rechercher des graphiques...",
-      "createNew": "Créer un Nouveau Graphique"
+      "searchPlaceholder": "Rechercher des jeux de données...",
+      "createNew": "Créer un Nouveau Jeu de Données"
     }
   },
   "library": {
     "detail": {
-      "backToLibrary": "Retour à la Bibliothèque",
-      "editChart": "Modifier le Graphique",
+      "backToLibrary": "Retour au Jeu de Données",
+      "editChart": "Modifier le Jeu de Données",
       "chartNotFound": "Graphique non trouvé",
       "copyEmbedLink": "Copier le lien d'intégration"
     }
