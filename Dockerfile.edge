@@ -1,0 +1,17 @@
+FROM supabase/edge-runtime:latest
+
+# Set working directory
+WORKDIR /home/deno
+
+# Environment variables will be provided at runtime through Coolify
+ENV PORT=8000
+ENV FUNCTION_SERVE_TIMEOUT_MS=60000
+
+# Copy functions
+COPY supabase/functions /home/deno/functions
+
+# Expose port
+EXPOSE 8000
+
+# Run edge runtime
+CMD ["serve", "--functions-dir", "/home/deno/functions", "--debug"]

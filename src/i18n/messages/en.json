@@ -54,7 +54,8 @@
     "todos": "Todos",
     "explorer": "Explorer",
     "configurator": "Configurator",
-    "library": "Library"
+    "library": "Library",
+    "import": "Import"
   },
   "settings": {
     "title": "Settings",
@@ -215,6 +216,65 @@
       "noCharts": "No charts found",
       "searchPlaceholder": "Search charts...",
       "createNew": "Create New Chart"
+    }
+  },
+  "import": {
+    "title": "Metric Import",
+    "description": "Upload data files and manage import history",
+    "tabs": {
+      "upload": "Upload File",
+      "history": "Upload History",
+      "data": "View Data"
+    },
+    "upload": {
+      "title": "Upload Metric File",
+      "description": "Upload CSV, Excel or JSON files to import metric data",
+      "selectFile": "Select file to upload",
+      "button": "Upload File",
+      "uploading": "Uploading"
+    },
+    "history": {
+      "title": "Upload History",
+      "description": "View and manage previously uploaded files",
+      "noFiles": "No files uploaded yet",
+      "download": "Download file",
+      "viewData": "View processed data",
+      "reprocess": "Reprocess file",
+      "columns": {
+        "filename": "Filename",
+        "uploadDate": "Upload Date",
+        "size": "Size",
+        "status": "Status",
+        "actions": "Actions"
+      }
+    },
+    "data": {
+      "title": "Processed Data",
+      "description": "View the processed data from your uploaded file",
+      "noData": "No data available for this file",
+      "close": "Close",
+      "error": {
+        "title": "Data Fetch Error",
+        "description": "Failed to fetch the processed data. Please try again."
+      }
+    },
+    "success": {
+      "title": "Upload Complete",
+      "description": "Your file has been uploaded successfully"
+    },
+    "error": {
+      "title": "Upload Failed",
+      "description": "An error occurred while uploading your file. Please try again."
+    },
+    "reprocess": {
+      "success": {
+        "title": "Reprocessing Started",
+        "description": "The file is being reprocessed. Check back in a moment."
+      },
+      "error": {
+        "title": "Reprocessing Failed",
+        "description": "Failed to reprocess the file. Please try again."
+      }
     }
   },
   "library": {

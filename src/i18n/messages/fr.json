@@ -28,7 +28,8 @@
     "todos": "Tâches",
     "explorer": "Indicateurs",
     "configurator": "Nouveau jeu de données",
-    "library": "Jeu de données"
+    "library": "Jeu de données",
+    "import": "Import"
   },
   "settings": {
     "title": "Paramètres",
@@ -215,6 +216,65 @@
       "noCharts": "Aucun graphique trouvé",
       "searchPlaceholder": "Rechercher des jeux de données...",
       "createNew": "Créer un Nouveau Jeu de Données"
+    }
+  },
+  "import": {
+    "title": "Import d'Indicateurs",
+    "description": "Téléversez des fichiers de données et gérez l'historique des imports",
+    "tabs": {
+      "upload": "Téléverser un Fichier",
+      "history": "Historique des Imports",
+      "data": "Voir les Données"
+    },
+    "upload": {
+      "title": "Téléverser un Fichier d'Indicateurs",
+      "description": "Téléversez des fichiers CSV, Excel ou JSON pour importer des données d'indicateurs",
+      "selectFile": "Sélectionner un fichier à téléverser",
+      "button": "Téléverser le Fichier",
+      "uploading": "Téléversement"
+    },
+    "history": {
+      "title": "Historique des Imports",
+      "description": "Consultez et gérez les fichiers précédemment téléversés",
+      "noFiles": "Aucun fichier téléversé pour le moment",
+      "download": "Télécharger le fichier",
+      "viewData": "Voir les données traitées",
+      "reprocess": "Retraiter le fichier",
+      "columns": {
+        "filename": "Nom du fichier",
+        "uploadDate": "Date de téléversement",
+        "size": "Taille",
+        "status": "Statut",
+        "actions": "Actions"
+      }
+    },
+    "data": {
+      "title": "Données Traitées",
+      "description": "Consultez les données traitées de votre fichier téléversé",
+      "noData": "Aucune donnée disponible pour ce fichier",
+      "close": "Fermer",
+      "error": {
+        "title": "Erreur de Récupération des Données",
+        "description": "Échec de la récupération des données traitées. Veuillez réessayer."
+      }
+    },
+    "success": {
+      "title": "Téléversement Terminé",
+      "description": "Votre fichier a été téléversé avec succès"
+    },
+    "error": {
+      "title": "Échec du Téléversement",
+      "description": "Une erreur s'est produite lors du téléversement de votre fichier. Veuillez réessayer."
+    },
+    "reprocess": {
+      "success": {
+        "title": "Retraitement Démarré",
+        "description": "Le fichier est en cours de retraitement. Vérifiez dans un instant."
+      },
+      "error": {
+        "title": "Échec du Retraitement",
+        "description": "Échec du retraitement du fichier. Veuillez réessayer."
+      }
     }
   },
   "library": {

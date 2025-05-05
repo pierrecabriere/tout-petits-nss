@@ -1,0 +1,7 @@
+{
+  "imports": {
+    "@supabase/supabase-js": "https://esm.sh/@supabase/supabase-js@2.7.1",
+    "xlsx": "https://esm.sh/xlsx@0.18.5",
+    "std/http/server": "https://deno.land/std@0.177.0/http/server.ts"
+  }
+}

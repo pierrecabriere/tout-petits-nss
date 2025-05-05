@@ -20,6 +20,7 @@ import {
   BarChart2,
   Settings,
   Library,
+  Upload,
 } from 'lucide-react';
 import {
   DropdownMenu,
@@ -57,6 +58,11 @@ const items: Array<{
     titleKey: 'navigation.library',
     url: '/library',
     icon: Library,
+  },
+  {
+    titleKey: 'navigation.import',
+    url: '/import',
+    icon: Upload,
   },
 ];
 
