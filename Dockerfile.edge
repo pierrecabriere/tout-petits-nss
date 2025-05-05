@@ -13,5 +13,5 @@ COPY supabase/functions /home/deno/functions
 # Expose port
 EXPOSE 8000
 
-# Get help for the start command
-CMD ["start", "--help"]
+# Start the edge runtime with the correct parameters
+CMD ["start", "--main-service", "/home/deno/functions"]
