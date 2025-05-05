@@ -14,4 +14,4 @@ COPY supabase/functions /home/deno/functions
 EXPOSE 8000
 
 # Run edge runtime
-CMD ["serve", "--functions-dir", "/home/deno/functions", "--debug"]
+CMD ["--functions-dir", "/home/deno/functions", "--debug"]
