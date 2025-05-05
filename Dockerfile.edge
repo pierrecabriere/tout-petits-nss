@@ -13,5 +13,5 @@ COPY supabase/functions /home/deno/functions
 # Expose port
 EXPOSE 8000
 
-# Run edge runtime
-CMD ["start", "--functions-dir", "/home/deno/functions"]
+# Run edge runtime with just the directory path
+CMD ["serve", "/home/deno/functions"]
