@@ -1,0 +1,15 @@
+FROM pierrecabriere/dynamic-deno-server:1.2.1
+
+WORKDIR /app
+
+# Copy functions directory and import map
+COPY supabase/functions /opt/functions
+
+# Set environment variables
+ENV PORT=9999
+ENV SERVER_ENVIRONMENT='{"KEY1":"value1","KEY2":"value2"}'
+ENV HEALTH_CHECK_ATTEMPTS=10
+ENV LOGS_DIRECTORY=/app
+
+# Expose the port used by Supabase functions
+EXPOSE 9999
