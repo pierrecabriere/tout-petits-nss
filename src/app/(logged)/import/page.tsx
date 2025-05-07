@@ -161,6 +161,7 @@ export default function ImportPage() {
           filename: fileName,
           path: filePath,
           uploaded_at: new Date().toISOString(),
+          processing_status: 'pending',
           metadata: {
             size: file.size,
             type: file.type,
@@ -196,7 +197,12 @@ export default function ImportPage() {
   // File data fetch mutation
   const { mutate: fetchFileData, isPending: isLoadingFileData } = useMutation({
     mutationFn: async (file: FileWithDetails) => {
-      if (!file.metadata || typeof file.metadata !== 'object' || !('json_path' in file.metadata)) {
+      if (
+        file.processing_status !== 'completed' ||
+        !file.metadata ||
+        typeof file.metadata !== 'object' ||
+        !('json_path' in file.metadata)
+      ) {
         throw new Error('No JSON data available for this file');
       }
 
@@ -243,6 +249,7 @@ export default function ImportPage() {
             filePath: file.path,
             fileName: file.filename,
             metadata: file.metadata,
+            processing_status: 'processing',
           }),
         }
       );
@@ -302,20 +309,21 @@ export default function ImportPage() {
 
   // Get processing status badge
   const getStatusBadge = (file: FileWithDetails) => {
-    if (!isFileMetadata(file.metadata)) {
-      return <Badge variant="outline">Unknown</Badge>;
-    }
-
-    const status = file.metadata.processing_status as string;
+    const status = file.processing_status;
 
     switch (status) {
-      case 'success':
+      case 'completed':
         return <Badge className="bg-green-100 text-green-800">Processed</Badge>;
       case 'error':
         return <Badge variant="destructive">Error</Badge>;
+      case 'processing':
       case 'pending':
         return (
-          <Badge variant="outline" className="bg-yellow-100 text-yellow-800">
+          <Badge
+            variant="outline"
+            className="flex items-center gap-1.5 bg-yellow-100 text-yellow-800"
+          >
+            <RefreshCw className="h-3 w-3 animate-spin" />
             Processing
           </Badge>
         );
@@ -477,12 +485,14 @@ export default function ImportPage() {
                           </TableCell>
                           <TableCell>
                             {getStatusBadge(file)}
-                            {isFileMetadata(file.metadata) && file.metadata.error_message && (
-                              <div className="mt-1 flex items-center text-xs text-red-600">
-                                <AlertTriangle className="mr-1 h-3 w-3" />
-                                {file.metadata.error_message}
-                              </div>
-                            )}
+                            {file.processing_status === 'error' &&
+                              isFileMetadata(file.metadata) &&
+                              file.metadata.error_message && (
+                                <div className="mt-1 flex items-center text-xs text-red-600">
+                                  <AlertTriangle className="mr-1 h-3 w-3" />
+                                  {file.metadata.error_message}
+                                </div>
+                              )}
                             {isFileMetadata(file.metadata) &&
                               typeof file.metadata.row_count === 'number' &&
                               typeof file.metadata.column_count === 'number' && (
@@ -515,8 +525,9 @@ export default function ImportPage() {
                                 <Download className="h-4 w-4" />
                               </Button>
 
-                              {isFileMetadata(file.metadata) &&
-                                file.metadata.processing_status === 'success' && (
+                              {file.processing_status === 'completed' &&
+                                isFileMetadata(file.metadata) &&
+                                file.metadata.json_path && (
                                   <Button
                                     variant="ghost"
                                     size="icon"
@@ -528,9 +539,7 @@ export default function ImportPage() {
                                   </Button>
                                 )}
 
-                              {(!isFileMetadata(file.metadata) ||
-                                !file.metadata.processing_status ||
-                                file.metadata.processing_status === 'error') && (
+                              {(file.processing_status === 'error' || !file.processing_status) && (
                                 <Button
                                   variant="ghost"
                                   size="icon"

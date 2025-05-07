@@ -30,7 +30,7 @@ BEGIN
   -- This uses pg_net to make an HTTP request to our Edge Function
   PERFORM
     net.http_post(
-      url := CONCAT(current_setting('app.supabase_url'), '/functions/v1/process-spreadsheet'),
+      url := CONCAT(current_setting('app.supabase_url'), '/process-spreadsheet'),
       headers := jsonb_build_object(
         'Content-Type', 'application/json',
         'Authorization', CONCAT('Bearer ', current_setting('app.supabase_service_role_key'))
@@ -55,23 +55,3 @@ EXECUTE FUNCTION public.process_new_file();
 
 -- Add pg_net extension if not already enabled
 CREATE EXTENSION IF NOT EXISTS pg_net WITH SCHEMA public;
-
--- Add supabase_url and service_role_key settings if they don't exist
-DO $$
-BEGIN
-  -- Only add if they don't exist
-  BEGIN
-    PERFORM current_setting('app.supabase_url');
-  EXCEPTION
-    WHEN undefined_object THEN
-      PERFORM set_config('app.supabase_url', 'https://your-project-ref.supabase.co', false);
-  END;
-
-  BEGIN
-    PERFORM current_setting('app.supabase_service_role_key');
-  EXCEPTION
-    WHEN undefined_object THEN
-      PERFORM set_config('app.supabase_service_role_key', 'your-service-role-key', false);
-  END;
-END;
-$$;

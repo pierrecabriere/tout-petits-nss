@@ -78,6 +78,7 @@ export default function ConfiguratorPage() {
   // State for chart configuration
   const [chartType, setChartType] = useState<'line' | 'bar' | 'pie' | 'area'>('line');
   const [yearRange, setYearRange] = useState<[number, number]>([1980, new Date().getFullYear()]);
+  const [dataAggregation, setDataAggregation] = useState<'sum' | 'avg'>('sum');
 
   // For backwards compatibility with components expecting date objects
   const dateRange = {
@@ -169,6 +170,7 @@ export default function ConfiguratorPage() {
             yearRange: yearRange,
             metrics: selectedMetrics,
             regions: selectedRegions,
+            dataAggregation: dataAggregation,
             showLegend,
             colorScheme,
             curveType: chartType === 'line' ? curveType : undefined,
@@ -411,6 +413,29 @@ export default function ConfiguratorPage() {
                   <Switch id="show-legend" checked={showLegend} onCheckedChange={setShowLegend} />
                 </div>
 
+                {/* Data Aggregation selection */}
+                <div className="space-y-2">
+                  <Label htmlFor="data-aggregation">
+                    {t('metrics.configurator.dataAggregation')}
+                  </Label>
+                  <Select
+                    value={dataAggregation}
+                    onValueChange={(value: 'sum' | 'avg') => setDataAggregation(value)}
+                  >
+                    <SelectTrigger id="data-aggregation">
+                      <SelectValue placeholder={t('metrics.configurator.selectAggregation')} />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="sum">
+                        {t('metrics.configurator.aggregationTypes.sum')}
+                      </SelectItem>
+                      <SelectItem value="avg">
+                        {t('metrics.configurator.aggregationTypes.average')}
+                      </SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
                 {/* Color scheme selection */}
                 <div className="space-y-2">
                   <Label>{t('metrics.configurator.colorScheme')}</Label>
@@ -458,9 +483,7 @@ export default function ConfiguratorPage() {
                       </Select>
                     </div>
                     <div className="flex items-center justify-between">
-                      <Label htmlFor="hide-dots">
-                        {t('metrics.configurator.hideDots') || 'Hide dots'}
-                      </Label>
+                      <Label htmlFor="hide-dots">{t('metrics.configurator.hideDots')}</Label>
                       <Switch id="hide-dots" checked={hideDots} onCheckedChange={setHideDots} />
                     </div>
                   </>
@@ -524,7 +547,7 @@ export default function ConfiguratorPage() {
                         outerRadius={outerRadius}
                         regionIds={selectedRegions}
                         hideDots={chartType === 'line' ? hideDots : undefined}
-                        aggregation="none"
+                        aggregation={dataAggregation}
                         stacked={false}
                       />
                     )}
@@ -535,14 +558,12 @@ export default function ConfiguratorPage() {
 
             <TabsContent value="table" className="space-y-4 pt-4">
               <div className="space-y-4">
-                <h3 className="text-lg font-medium">
-                  {t('metrics.configurator.tableOptions') || 'Web Table Options'}
-                </h3>
+                <h3 className="text-lg font-medium">{t('metrics.configurator.tableOptions')}</h3>
 
                 {/* Table settings */}
                 <div className="flex items-center justify-between">
                   <Label htmlFor="show-row-numbers">
-                    {t('metrics.configurator.showRowNumbers') || 'Show row numbers'}
+                    {t('metrics.configurator.showRowNumbers')}
                   </Label>
                   <Switch
                     id="show-row-numbers"
@@ -554,9 +575,7 @@ export default function ConfiguratorPage() {
                 </div>
 
                 <div className="flex items-center justify-between">
-                  <Label htmlFor="show-filters">
-                    {t('metrics.configurator.showFilters') || 'Show filters'}
-                  </Label>
+                  <Label htmlFor="show-filters">{t('metrics.configurator.showFilters')}</Label>
                   <Switch
                     id="show-filters"
                     checked={tableView.showFilters}
@@ -567,9 +586,7 @@ export default function ConfiguratorPage() {
                 </div>
 
                 <div className="flex items-center justify-between">
-                  <Label htmlFor="enable-sorting">
-                    {t('metrics.configurator.enableSorting') || 'Enable sorting'}
-                  </Label>
+                  <Label htmlFor="enable-sorting">{t('metrics.configurator.enableSorting')}</Label>
                   <Switch
                     id="enable-sorting"
                     checked={tableView.enableSorting}
@@ -581,7 +598,7 @@ export default function ConfiguratorPage() {
 
                 <div className="flex items-center justify-between">
                   <Label htmlFor="enable-pagination">
-                    {t('metrics.configurator.enablePagination') || 'Enable pagination'}
+                    {t('metrics.configurator.enablePagination')}
                   </Label>
                   <Switch
                     id="enable-pagination"
@@ -594,9 +611,7 @@ export default function ConfiguratorPage() {
 
                 {/* Page size selection */}
                 <div className="space-y-2">
-                  <Label htmlFor="page-size">
-                    {t('metrics.configurator.pageSize') || 'Page size'}
-                  </Label>
+                  <Label htmlFor="page-size">{t('metrics.configurator.pageSize')}</Label>
                   <Select
                     value={tableView.pageSize.toString()}
                     onValueChange={value =>
@@ -604,9 +619,7 @@ export default function ConfiguratorPage() {
                     }
                   >
                     <SelectTrigger id="page-size">
-                      <SelectValue
-                        placeholder={t('metrics.configurator.selectPageSize') || 'Select page size'}
-                      />
+                      <SelectValue placeholder={t('metrics.configurator.selectPageSize')} />
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="5">5</SelectItem>
@@ -620,9 +633,7 @@ export default function ConfiguratorPage() {
 
                 {/* Density selection */}
                 <div className="space-y-2">
-                  <Label htmlFor="density">
-                    {t('metrics.configurator.tableDensity') || 'Table density'}
-                  </Label>
+                  <Label htmlFor="density">{t('metrics.configurator.tableDensity')}</Label>
                   <Select
                     value={tableView.density}
                     onValueChange={(value: 'default' | 'compact' | 'comfortable') =>
@@ -630,19 +641,17 @@ export default function ConfiguratorPage() {
                     }
                   >
                     <SelectTrigger id="density">
-                      <SelectValue
-                        placeholder={t('metrics.configurator.selectDensity') || 'Select density'}
-                      />
+                      <SelectValue placeholder={t('metrics.configurator.selectDensity')} />
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="compact">
-                        {t('metrics.configurator.densityOptions.compact') || 'Compact'}
+                        {t('metrics.configurator.densityOptions.compact')}
                       </SelectItem>
                       <SelectItem value="default">
-                        {t('metrics.configurator.densityOptions.default') || 'Default'}
+                        {t('metrics.configurator.densityOptions.default')}
                       </SelectItem>
                       <SelectItem value="comfortable">
-                        {t('metrics.configurator.densityOptions.comfortable') || 'Comfortable'}
+                        {t('metrics.configurator.densityOptions.comfortable')}
                       </SelectItem>
                     </SelectContent>
                   </Select>
@@ -650,9 +659,7 @@ export default function ConfiguratorPage() {
 
                 {/* Group by selection */}
                 <div className="space-y-2">
-                  <Label htmlFor="group-by">
-                    {t('metrics.configurator.groupBy') || 'Group by'}
-                  </Label>
+                  <Label htmlFor="group-by">{t('metrics.configurator.groupBy')}</Label>
                   <Select
                     value={tableView.groupBy}
                     onValueChange={(value: 'year' | 'metric' | 'year-metric' | 'metric-year') =>
@@ -660,22 +667,20 @@ export default function ConfiguratorPage() {
                     }
                   >
                     <SelectTrigger id="group-by">
-                      <SelectValue
-                        placeholder={t('metrics.configurator.selectGroupBy') || 'Select grouping'}
-                      />
+                      <SelectValue placeholder={t('metrics.configurator.selectGroupBy')} />
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="year">
-                        {t('metrics.configurator.groupByOptions.year') || 'Year'}
+                        {t('metrics.configurator.groupByOptions.year')}
                       </SelectItem>
                       <SelectItem value="metric">
-                        {t('metrics.configurator.groupByOptions.metric') || 'Metric'}
+                        {t('metrics.configurator.groupByOptions.metric')}
                       </SelectItem>
                       <SelectItem value="year-metric">
-                        {t('metrics.configurator.groupByOptions.yearMetric') || 'Year - Metric'}
+                        {t('metrics.configurator.groupByOptions.yearMetric')}
                       </SelectItem>
                       <SelectItem value="metric-year">
-                        {t('metrics.configurator.groupByOptions.metricYear') || 'Metric - Year'}
+                        {t('metrics.configurator.groupByOptions.metricYear')}
                       </SelectItem>
                     </SelectContent>
                   </Select>
@@ -684,14 +689,13 @@ export default function ConfiguratorPage() {
                 {/* Preview of data in table format */}
                 <div className="mt-8">
                   <h3 className="mb-2 text-lg font-medium">
-                    {t('metrics.configurator.tablePreview') || 'Table Preview'}
+                    {t('metrics.configurator.tablePreview')}
                   </h3>
                   <div className="h-[400px] overflow-auto rounded-md border bg-muted/30">
                     {selectedMetrics.length === 0 ? (
                       <div className="flex h-full items-center justify-center">
                         <p className="text-muted-foreground">
-                          {t('metrics.configurator.selectMetricsToPreview') ||
-                            'Select metrics to preview data in table format'}
+                          {t('metrics.configurator.selectMetricsToPreview')}
                         </p>
                       </div>
                     ) : (

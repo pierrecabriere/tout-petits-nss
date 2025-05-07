@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { useQuery } from '@tanstack/react-query';
 import supabaseClient from '@/lib/supabase-client';
-import { Tables } from '@/types/database';
+import { Tables, Constants } from '@/types/database';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Badge } from '@/components/ui/badge';
 import {
@@ -88,6 +88,7 @@ export default function MetricDetailPage() {
   const minYear = 1980;
   const [yearRange, setYearRange] = useState<[number, number]>([minYear, currentYear]);
   const [selectedRegion, setSelectedRegion] = useState<string>('all');
+  const [selectedStatus, setSelectedStatus] = useState<string>('all');
 
   // Get the current metric ID from the URL
   const metricId = params.id as string;
@@ -157,6 +158,7 @@ export default function MetricDetailPage() {
       sorting,
       yearRange,
       selectedRegion,
+      selectedStatus,
       pageSize,
       pagination.pageIndex,
     ],
@@ -180,6 +182,11 @@ export default function MetricDetailPage() {
       // Apply region filter if selected
       if (selectedRegion !== 'all') {
         query = query.eq('region_id', selectedRegion);
+      }
+
+      // Apply status filter if selected
+      if (selectedStatus !== 'all') {
+        query = query.eq('status', selectedStatus as Tables<'metric_data'>['status']);
       }
 
       // Apply sorting - map year to date for server-side sorting
@@ -243,12 +250,19 @@ export default function MetricDetailPage() {
   const resetFilters = () => {
     setYearRange([minYear, currentYear]);
     setSelectedRegion('all');
+    setSelectedStatus('all');
   };
 
   // Mutation for updating data points
   const updateDataMutation = useMutation({
-    mutationFn: async (data: { id: string; value: number; region_id: string; date: string }) => {
-      const { id, value, region_id, date } = data;
+    mutationFn: async (data: {
+      id: string;
+      value: number;
+      region_id: string;
+      date: string;
+      status: Tables<'metric_data'>['status'];
+    }) => {
+      const { id, value, region_id, date, status } = data;
 
       const { data: result, error } = await supabaseClient
         .from('metric_data')
@@ -256,6 +270,7 @@ export default function MetricDetailPage() {
           value,
           region_id,
           date,
+          status,
           updated_at: new Date().toISOString(),
         })
         .eq('id', id)
@@ -273,6 +288,39 @@ export default function MetricDetailPage() {
         description: t('metrics.detail.dataPointUpdated'),
       });
       setEditModalOpen(false);
+    },
+    onError: error => {
+      toast({
+        title: t('metrics.detail.updateError'),
+        description: error.message,
+        variant: 'destructive',
+      });
+    },
+  });
+
+  // Mutation for publishing all draft metrics
+  const publishAllDraftMetricsMutation = useMutation({
+    mutationFn: async () => {
+      const { data: result, error } = await supabaseClient
+        .from('metric_data')
+        .update({
+          status: 'public',
+          updated_at: new Date().toISOString(),
+        })
+        .eq('metric_id', metricId)
+        .eq('status', 'draft')
+        .select();
+
+      if (error) throw error;
+      return result;
+    },
+    onSuccess: data => {
+      // Invalidate and refetch the data points query to update the table
+      queryClient.invalidateQueries({ queryKey: ['metric-data', metricId] });
+      toast({
+        title: t('metrics.detail.updateSuccess'),
+        description: t('metrics.detail.publishedDataPoints', { count: data.length }),
+      });
     },
     onError: error => {
       toast({
@@ -312,6 +360,7 @@ export default function MetricDetailPage() {
         typeof editingData.value === 'string' ? parseFloat(editingData.value) : editingData.value,
       region_id: editingData.region_id || '',
       date,
+      status: editingData.status,
     });
   };
 
@@ -354,6 +403,24 @@ export default function MetricDetailPage() {
           {row.original.region_name || '-'}
         </div>
       ),
+      enableSorting: false,
+    },
+    {
+      accessorKey: 'status',
+      header: () => <div className="font-medium">{t('common.status')}</div>,
+      cell: ({ row }) => {
+        const status = row.original.status;
+        let badgeVariant = 'outline';
+        if (status === 'public') badgeVariant = 'default';
+        if (status === 'private') badgeVariant = 'secondary';
+        if (status === 'draft') badgeVariant = 'outline';
+
+        return (
+          <div className="cursor-pointer" onClick={() => handleEditClick(row.original)}>
+            <Badge variant={badgeVariant as any}>{t(`common.${status}`)}</Badge>
+          </div>
+        );
+      },
       enableSorting: false,
     },
     {
@@ -445,19 +512,73 @@ export default function MetricDetailPage() {
                   {t('metrics.explorer.source')}: {metric.source.name}
                 </p>
               )}
+
+              {!isLoadingData && dataPointsResult?.data && (
+                <div className="mt-4 flex flex-wrap gap-2">
+                  <p className="mr-2 text-sm font-medium">{t('metrics.detail.statusSummary')}:</p>
+                  {(() => {
+                    // Count statuses
+                    const statusCounts = {
+                      public: 0,
+                      private: 0,
+                      draft: 0,
+                    };
+
+                    dataPointsResult.data.forEach(point => {
+                      if (point.status) {
+                        statusCounts[point.status]++;
+                      }
+                    });
+
+                    return (
+                      <>
+                        {statusCounts.public > 0 && (
+                          <Badge variant="default" className="px-2 py-1">
+                            {t('common.public')}: {statusCounts.public}
+                          </Badge>
+                        )}
+                        {statusCounts.private > 0 && (
+                          <Badge variant="secondary" className="px-2 py-1">
+                            {t('common.private')}: {statusCounts.private}
+                          </Badge>
+                        )}
+                        {statusCounts.draft > 0 && (
+                          <Badge variant="outline" className="px-2 py-1">
+                            {t('common.draft')}: {statusCounts.draft}
+                          </Badge>
+                        )}
+                        {statusCounts.draft > 0 && (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="ml-2"
+                            onClick={() => publishAllDraftMetricsMutation.mutate()}
+                            disabled={publishAllDraftMetricsMutation.isPending}
+                          >
+                            {publishAllDraftMetricsMutation.isPending ? (
+                              <div className="mr-2 h-4 w-4 animate-spin rounded-full border-b-2 border-current"></div>
+                            ) : null}
+                            {t('metrics.detail.publishData')}
+                          </Button>
+                        )}
+                      </>
+                    );
+                  })()}
+                </div>
+              )}
             </div>
           ) : null}
         </CardHeader>
         <CardContent className="pt-6">
           <div className="space-y-4">
-            <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+            <div className="flex flex-col gap-4">
               <div>
                 <h2 className="text-xl font-semibold leading-none tracking-tight">
                   {t('metrics.detail.dataPoints')}
                 </h2>
                 <p className="text-sm text-muted-foreground">{metric?.description}</p>
               </div>
-              <div className="flex flex-col gap-2 md:flex-row md:items-center">
+              <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-end">
                 {/* Reset Filters Button */}
                 <Button
                   variant="ghost"
@@ -465,7 +586,8 @@ export default function MetricDetailPage() {
                   disabled={
                     yearRange[0] === minYear &&
                     yearRange[1] === currentYear &&
-                    selectedRegion === 'all'
+                    selectedRegion === 'all' &&
+                    selectedStatus === 'all'
                   }
                 >
                   {t('common.resetFilters')}
@@ -507,6 +629,21 @@ export default function MetricDetailPage() {
                           {region.name}
                         </SelectItem>
                       ))}
+                  </SelectContent>
+                </Select>
+
+                {/* Status Filter */}
+                <Select value={selectedStatus} onValueChange={setSelectedStatus}>
+                  <SelectTrigger className="w-full md:w-[150px]">
+                    <SelectValue placeholder={t('common.allStatuses')} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">{t('common.allStatuses')}</SelectItem>
+                    {Constants.public.Enums.metric_data_status.map(status => (
+                      <SelectItem key={status} value={status}>
+                        {t(`common.${status}`)}
+                      </SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
               </div>
@@ -659,6 +796,28 @@ export default function MetricDetailPage() {
                           {region.name}
                         </SelectItem>
                       ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="status" className="text-right">
+                  {t('common.status')}
+                </Label>
+                <Select
+                  value={editingData.status}
+                  onValueChange={(value: Tables<'metric_data'>['status']) =>
+                    setEditingData({ ...editingData, status: value })
+                  }
+                >
+                  <SelectTrigger id="status" className="col-span-3">
+                    <SelectValue placeholder={t('common.selectStatus')} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {Constants.public.Enums.metric_data_status.map(status => (
+                      <SelectItem key={status} value={status}>
+                        {t(`common.${status}`)}
+                      </SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
               </div>

@@ -157,6 +157,7 @@ export type Database = {
           id: string
           metadata: Json | null
           path: string
+          processing_status: Database["public"]["Enums"]["file_processing_status"]
           source_id: string | null
           uploaded_at: string
           uploaded_by: string | null
@@ -167,6 +168,7 @@ export type Database = {
           id?: string
           metadata?: Json | null
           path: string
+          processing_status?: Database["public"]["Enums"]["file_processing_status"]
           source_id?: string | null
           uploaded_at?: string
           uploaded_by?: string | null
@@ -177,6 +179,7 @@ export type Database = {
           id?: string
           metadata?: Json | null
           path?: string
+          processing_status?: Database["public"]["Enums"]["file_processing_status"]
           source_id?: string | null
           uploaded_at?: string
           uploaded_by?: string | null
@@ -206,6 +209,7 @@ export type Database = {
           metadata: Json | null
           metric_id: string
           region_id: string | null
+          status: Database["public"]["Enums"]["metric_data_status"]
           updated_at: string
           value: number
         }
@@ -216,6 +220,7 @@ export type Database = {
           metadata?: Json | null
           metric_id: string
           region_id?: string | null
+          status?: Database["public"]["Enums"]["metric_data_status"]
           updated_at?: string
           value: number
         }
@@ -226,6 +231,7 @@ export type Database = {
           metadata?: Json | null
           metric_id?: string
           region_id?: string | null
+          status?: Database["public"]["Enums"]["metric_data_status"]
           updated_at?: string
           value?: number
         }
@@ -430,7 +436,8 @@ export type Database = {
       [_ in never]: never
     }
     Enums: {
-      [_ in never]: never
+      file_processing_status: "pending" | "processing" | "completed" | "error"
+      metric_data_status: "public" | "private" | "draft"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -548,7 +555,10 @@ export const Constants = {
     Enums: {},
   },
   public: {
-    Enums: {},
+    Enums: {
+      file_processing_status: ["pending", "processing", "completed", "error"],
+      metric_data_status: ["public", "private", "draft"],
+    },
   },
 } as const
 

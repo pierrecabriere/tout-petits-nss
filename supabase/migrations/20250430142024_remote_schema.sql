@@ -83,9 +83,6 @@ CREATE TABLE IF NOT EXISTS "public"."categories" (
 );
 
 
-ALTER TABLE "public"."categories" OWNER TO "supabase_admin";
-
-
 CREATE TABLE IF NOT EXISTS "public"."chart_highlights" (
     "id" "uuid" DEFAULT "gen_random_uuid"() NOT NULL,
     "chart_id" "uuid" NOT NULL,
@@ -94,9 +91,6 @@ CREATE TABLE IF NOT EXISTS "public"."chart_highlights" (
     "created_at" timestamp with time zone DEFAULT "now"() NOT NULL,
     "updated_at" timestamp with time zone DEFAULT "now"() NOT NULL
 );
-
-
-ALTER TABLE "public"."chart_highlights" OWNER TO "supabase_admin";
 
 
 CREATE TABLE IF NOT EXISTS "public"."charts" (
@@ -111,16 +105,10 @@ CREATE TABLE IF NOT EXISTS "public"."charts" (
 );
 
 
-ALTER TABLE "public"."charts" OWNER TO "supabase_admin";
-
-
 CREATE TABLE IF NOT EXISTS "public"."file_tags" (
     "file_id" "uuid" NOT NULL,
     "tag_id" "uuid" NOT NULL
 );
-
-
-ALTER TABLE "public"."file_tags" OWNER TO "supabase_admin";
 
 
 CREATE TABLE IF NOT EXISTS "public"."files" (
@@ -135,9 +123,6 @@ CREATE TABLE IF NOT EXISTS "public"."files" (
 );
 
 
-ALTER TABLE "public"."files" OWNER TO "supabase_admin";
-
-
 CREATE TABLE IF NOT EXISTS "public"."metric_data" (
     "id" "uuid" DEFAULT "gen_random_uuid"() NOT NULL,
     "metric_id" "uuid" NOT NULL,
@@ -150,16 +135,10 @@ CREATE TABLE IF NOT EXISTS "public"."metric_data" (
 );
 
 
-ALTER TABLE "public"."metric_data" OWNER TO "supabase_admin";
-
-
 CREATE TABLE IF NOT EXISTS "public"."metric_data_tags" (
     "metric_data_id" "uuid" NOT NULL,
     "tag_id" "uuid" NOT NULL
 );
-
-
-ALTER TABLE "public"."metric_data_tags" OWNER TO "supabase_admin";
 
 
 CREATE TABLE IF NOT EXISTS "public"."metrics" (
@@ -174,9 +153,6 @@ CREATE TABLE IF NOT EXISTS "public"."metrics" (
 );
 
 
-ALTER TABLE "public"."metrics" OWNER TO "supabase_admin";
-
-
 CREATE TABLE IF NOT EXISTS "public"."notes" (
     "id" "uuid" DEFAULT "gen_random_uuid"() NOT NULL,
     "metric_data_id" "uuid",
@@ -188,9 +164,6 @@ CREATE TABLE IF NOT EXISTS "public"."notes" (
 );
 
 
-ALTER TABLE "public"."notes" OWNER TO "supabase_admin";
-
-
 CREATE TABLE IF NOT EXISTS "public"."regions" (
     "id" "uuid" DEFAULT "gen_random_uuid"() NOT NULL,
     "code" "text" NOT NULL,
@@ -198,9 +171,6 @@ CREATE TABLE IF NOT EXISTS "public"."regions" (
     "created_at" timestamp with time zone DEFAULT "now"() NOT NULL,
     "updated_at" timestamp with time zone DEFAULT "now"() NOT NULL
 );
-
-
-ALTER TABLE "public"."regions" OWNER TO "supabase_admin";
 
 
 CREATE TABLE IF NOT EXISTS "public"."sources" (
@@ -211,16 +181,10 @@ CREATE TABLE IF NOT EXISTS "public"."sources" (
 );
 
 
-ALTER TABLE "public"."sources" OWNER TO "supabase_admin";
-
-
 CREATE TABLE IF NOT EXISTS "public"."tags" (
     "id" "uuid" DEFAULT "gen_random_uuid"() NOT NULL,
     "name" "text" NOT NULL
 );
-
-
-ALTER TABLE "public"."tags" OWNER TO "supabase_admin";
 
 
 ALTER TABLE ONLY "public"."categories"

@@ -174,27 +174,38 @@ export default function RenderChart(props: RenderChartProps) {
     setMetricNames(namesMap);
     setMetricUnits(unitsMap);
 
-    // Organize data points by date (used as timestamp)
-    const dataByTimestamp: { [timestamp: string]: { [metricId: string]: number } } = {};
+    // Organize data points by date and metric
+    const dataByTimestampAndMetric: {
+      [timestamp: string]: {
+        [metricId: string]: {
+          sum: number;
+          count: number;
+        };
+      };
+    } = {};
 
     dataPoints.forEach(({ metricId, data }) => {
       data.forEach(point => {
         const timestamp = point.date; // Use date as timestamp
 
-        if (!dataByTimestamp[timestamp]) {
-          dataByTimestamp[timestamp] = {};
+        if (!dataByTimestampAndMetric[timestamp]) {
+          dataByTimestampAndMetric[timestamp] = {};
         }
 
-        if (!dataByTimestamp[timestamp][metricId]) {
-          dataByTimestamp[timestamp][metricId] = 0;
+        if (!dataByTimestampAndMetric[timestamp][metricId]) {
+          dataByTimestampAndMetric[timestamp][metricId] = {
+            sum: 0,
+            count: 0,
+          };
         }
 
-        dataByTimestamp[timestamp][metricId] += Number(point.value);
+        dataByTimestampAndMetric[timestamp][metricId].sum += Number(point.value);
+        dataByTimestampAndMetric[timestamp][metricId].count += 1;
       });
     });
 
     // Transform the data into an array for Recharts
-    const processedData: ChartDataPoint[] = Object.keys(dataByTimestamp).map(timestamp => {
+    const processedData: ChartDataPoint[] = Object.keys(dataByTimestampAndMetric).map(timestamp => {
       const date = new Date(timestamp);
       // Afficher uniquement l'année
       const formattedDate = date.getUTCFullYear().toString();
@@ -204,9 +215,20 @@ export default function RenderChart(props: RenderChartProps) {
         formattedDate,
       };
 
-      // Add values for each metric
+      // Add values for each metric based on the aggregation method
       metricIds.forEach(metricId => {
-        dataPoint[metricId] = dataByTimestamp[timestamp][metricId] || 0;
+        const metricData = dataByTimestampAndMetric[timestamp][metricId];
+        if (metricData) {
+          // Apply region aggregation based on selected method
+          if (aggregation === 'avg' && metricData.count > 0) {
+            dataPoint[metricId] = metricData.sum / metricData.count;
+          } else {
+            // Default to sum for other aggregation types or when none is specified
+            dataPoint[metricId] = metricData.sum;
+          }
+        } else {
+          dataPoint[metricId] = 0;
+        }
       });
 
       return dataPoint;
@@ -215,45 +237,28 @@ export default function RenderChart(props: RenderChartProps) {
     // Sort by timestamp
     processedData.sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
 
-    // Apply aggregation if needed
-    if (aggregation !== 'none' && processedData.length > 0) {
-      // For pie charts, we'll aggregate all values for each metric
-      if (chartType === 'pie') {
-        const aggregatedData: ChartDataPoint = {
-          timestamp: 'aggregated',
-          formattedDate: 'Total',
-        };
+    // Apply time aggregation if needed for pie charts
+    if (chartType === 'pie' && processedData.length > 0) {
+      const aggregatedData: ChartDataPoint = {
+        timestamp: 'aggregated',
+        formattedDate: 'Total',
+      };
 
-        metricIds.forEach(metricId => {
-          const values = processedData.map(d => Number(d[metricId] || 0));
+      metricIds.forEach(metricId => {
+        const values = processedData.map(d => Number(d[metricId] || 0));
 
-          let aggregatedValue = 0;
-          switch (aggregation) {
-            case 'sum':
-              aggregatedValue = values.reduce((sum, val) => sum + val, 0);
-              break;
-            case 'avg':
-              aggregatedValue = values.reduce((sum, val) => sum + val, 0) / values.length;
-              break;
-            case 'min':
-              aggregatedValue = Math.min(...values);
-              break;
-            case 'max':
-              aggregatedValue = Math.max(...values);
-              break;
-          }
+        let aggregatedValue = 0;
+        // We're already applying region aggregation above, this is just for time aggregation in pie charts
+        aggregatedValue = values.reduce((sum, val) => sum + val, 0);
 
-          aggregatedData[metricId] = aggregatedValue;
-        });
+        aggregatedData[metricId] = aggregatedValue;
+      });
 
-        setChartData([aggregatedData]);
-      } else {
-        setChartData(processedData);
-      }
+      setChartData([aggregatedData]);
     } else {
       setChartData(processedData);
     }
-  }, [dataPoints, metrics, metricIds, aggregation, chartType, colorScheme]);
+  }, [dataPoints, metrics, metricIds, aggregation, chartType]);
 
   // If loading or no data, show placeholder
   if (isLoadingMetrics || isLoadingData) {

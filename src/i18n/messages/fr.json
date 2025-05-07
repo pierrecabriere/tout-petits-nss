@@ -14,13 +14,22 @@
     "page": "Page",
     "year": "Année",
     "region": "Région",
+    "status": "Statut",
+    "allStatuses": "Tous les statuts",
+    "selectStatus": "Sélectionner un statut",
+    "public": "Public",
+    "private": "Privé",
+    "draft": "Brouillon",
+    "edit": "Modifier",
     "allDates": "Toutes les dates",
     "allRegions": "Toutes les régions",
     "allYears": "Toutes les années",
     "resetFilters": "Réinitialiser les filtres",
     "cancel": "Annuler",
     "save": "Enregistrer",
-    "saving": "Enregistrement..."
+    "saving": "Enregistrement...",
+    "delete": "Supprimer",
+    "deleting": "Suppression..."
   },
   "navigation": {
     "home": "Accueil",
@@ -98,7 +107,16 @@
       "parentMetric": "Métrique parente",
       "viewDetails": "Voir les détails",
       "viewData": "Voir les données",
-      "edit": "Modifier"
+      "edit": "Modifier",
+      "delete": "Supprimer",
+      "deleteConfirmTitle": "Supprimer l'indicateur",
+      "deleteConfirmDescription": "Êtes-vous sûr de vouloir supprimer l'indicateur \"{name}\" ? Cette action est irréversible.",
+      "deleteConfirmDataCount": "Cette action supprimera également {count} points de données associés à cet indicateur.",
+      "deleteSuccess": "Indicateur supprimé",
+      "deleteSuccessDescription": "L'indicateur et ses données ont été supprimés avec succès.",
+      "deleteError": "Échec de la suppression",
+      "deleteErrorDescription": "Une erreur s'est produite lors de la suppression de l'indicateur. Veuillez réessayer.",
+      "deselect": "Désélectionner l'indicateur"
     },
     "edit": {
       "title": "Modifier la Métrique",
@@ -113,8 +131,16 @@
       "error": "Échec de la mise à jour de la métrique"
     },
     "detail": {
-      "backToExplorer": "Retour à l'Explorateur",
-      "dataPoints": "Points de Données",
+      "backToExplorer": "Retour à l'explorateur",
+      "dataPoints": "Points de données",
+      "statusSummary": "Résumé des statuts",
+      "publishData": "Publier les données",
+      "publishedDataPoints": "{count, plural, =0 {Aucun point de données publié} =1 {1 point de données publié} other {# points de données publiés}}",
+      "editDataPoint": "Modifier le point de données",
+      "editDataPointDescription": "Modifier les valeurs et le statut de ce point de données",
+      "updateSuccess": "Mise à jour réussie",
+      "updateError": "Échec de la mise à jour",
+      "dataPointUpdated": "Le point de données a été mis à jour avec succès",
       "noData": "Aucun point de données trouvé pour cette métrique",
       "timestamp": "Horodatage",
       "value": "Valeur",
@@ -137,6 +163,7 @@
       "configureCustomize": "Configurer les métriques et personnaliser votre graphique",
       "basicSettings": "Paramètres de Base",
       "chartOptions": "Options du Graphique",
+      "tableOptions": "Options du Tableau",
       "chartType": "Type de Graphique",
       "selectChartType": "Sélectionner le type de graphique",
       "chartTypes": {
@@ -157,11 +184,10 @@
       "colorScheme": "Palette de Couleurs",
       "stacked": "Empilé",
       "dataAggregation": "Agrégation des Données",
-      "selectAggregation": "Sélectionner l'agrégation",
-      "aggregation": {
-        "none": "Aucune",
+      "selectAggregation": "Sélectionner la méthode d'agrégation",
+      "aggregationTypes": {
         "sum": "Somme",
-        "avg": "Moyenne",
+        "average": "Moyenne",
         "min": "Minimum",
         "max": "Maximum"
       },
@@ -186,7 +212,6 @@
       "description": "Description",
       "enterChartDescription": "Entrez la description du graphique",
       "cancel": "Annuler",
-      "tableOptions": "Options du Tableau",
       "showRowNumbers": "Afficher les numéros de lignes",
       "showFilters": "Afficher les filtres",
       "enableSorting": "Activer le tri",

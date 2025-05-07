@@ -1,0 +1,14 @@
+services:
+  deno-server:
+    image: pierrecabriere/dynamic-deno-server:1.2.1
+    ports:
+      - '9999:9999'
+    volumes:
+      - ./supabase/functions:/opt/functions
+    environment:
+      - HEALTH_CHECK_ATTEMPTS=10
+      - ENV_FILE=./.env
+      - WATCH_FILES=true
+      - CHECK_CODE=false
+      - DEBUG=*
+    restart: unless-stopped

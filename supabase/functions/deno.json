@@ -1,5 +1,10 @@
 {
   "imports": {
-    "math": "https://deno.land/x/math@v1.1.0/mod.ts"
+    "@supabase/supabase-js": "https://esm.sh/@supabase/supabase-js@2.49.4",
+    "xlsx": "https://cdn.sheetjs.com/xlsx-0.20.3/package/xlsx.mjs"
+  },
+  "compilerOptions": {
+    "lib": ["deno.ns", "dom"],
+    "types": ["node"]
   }
 }

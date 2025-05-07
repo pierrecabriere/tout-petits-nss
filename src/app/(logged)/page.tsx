@@ -4,7 +4,7 @@ import { useTranslations } from 'next-intl';
 import { useState } from 'react';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent } from '@/components/ui/card';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import supabaseClient from '@/lib/supabase-client';
 import { Tables } from '@/types/database';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -17,6 +17,7 @@ import {
   InfoIcon,
   CalendarIcon,
   Search,
+  Trash2,
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { TreeView, type TreeDataItem } from '@/components/tree-view';
@@ -25,6 +26,18 @@ import { Badge } from '@/components/ui/badge';
 import { formatDistanceToNow } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import { useLocale } from 'next-intl';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from '@/components/ui/alert-dialog';
+import { useToast } from '@/hooks/use-toast';
 
 type MetricWithStats = Tables<'metrics'> & {
   source: Tables<'sources'> | null;
@@ -36,8 +49,11 @@ export default function MetricTreePage() {
   const t = useTranslations();
   const router = useRouter();
   const locale = useLocale();
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedMetric, setSelectedMetric] = useState<MetricWithStats | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   // Fetch metrics data with stats
   const { data: metrics, isLoading } = useQuery({
@@ -108,6 +124,49 @@ export default function MetricTreePage() {
       return metricsWithStats;
     },
   });
+
+  // Function to delete a metric and its data
+  const deleteMetric = async (metricId: string) => {
+    try {
+      setIsDeleting(true);
+
+      // First delete all associated data points
+      const { error: dataError } = await supabaseClient
+        .from('metric_data')
+        .delete()
+        .eq('metric_id', metricId);
+
+      if (dataError) throw dataError;
+
+      // Then delete the metric itself
+      const { error: metricError } = await supabaseClient
+        .from('metrics')
+        .delete()
+        .eq('id', metricId);
+
+      if (metricError) throw metricError;
+
+      // Invalidate the query to refresh the data
+      queryClient.invalidateQueries({ queryKey: ['metrics-with-stats-tree'] });
+
+      // Reset selected metric
+      setSelectedMetric(null);
+
+      toast({
+        title: t('metrics.explorer.deleteSuccess'),
+        description: t('metrics.explorer.deleteSuccessDescription'),
+      });
+    } catch (error) {
+      console.error('Error deleting metric:', error);
+      toast({
+        title: t('metrics.explorer.deleteError'),
+        description: t('metrics.explorer.deleteErrorDescription'),
+        variant: 'destructive',
+      });
+    } finally {
+      setIsDeleting(false);
+    }
+  };
 
   // Format date based on current locale
   const formatDate = (date: Date) => {
@@ -332,6 +391,46 @@ export default function MetricTreePage() {
                           >
                             {t('metrics.explorer.edit')}
                           </Button>
+                          <AlertDialog>
+                            <AlertDialogTrigger asChild>
+                              <Button
+                                size="sm"
+                                variant="destructive"
+                                aria-label={t('metrics.explorer.delete')}
+                                disabled={isDeleting}
+                              >
+                                <Trash2 className="mr-1 h-3 w-3" />
+                                {t('metrics.explorer.delete')}
+                              </Button>
+                            </AlertDialogTrigger>
+                            <AlertDialogContent>
+                              <AlertDialogHeader>
+                                <AlertDialogTitle>
+                                  {t('metrics.explorer.deleteConfirmTitle')}
+                                </AlertDialogTitle>
+                                <AlertDialogDescription>
+                                  {t('metrics.explorer.deleteConfirmDescription', {
+                                    name: selectedMetric.name,
+                                  })}
+                                  <br />
+                                  {selectedMetric.data_count > 0 &&
+                                    t('metrics.explorer.deleteConfirmDataCount', {
+                                      count: selectedMetric.data_count,
+                                    })}
+                                </AlertDialogDescription>
+                              </AlertDialogHeader>
+                              <AlertDialogFooter>
+                                <AlertDialogCancel>{t('common.cancel')}</AlertDialogCancel>
+                                <AlertDialogAction
+                                  className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                                  onClick={() => deleteMetric(selectedMetric.id)}
+                                  disabled={isDeleting}
+                                >
+                                  {isDeleting ? t('common.deleting') : t('common.delete')}
+                                </AlertDialogAction>
+                              </AlertDialogFooter>
+                            </AlertDialogContent>
+                          </AlertDialog>
                         </div>
                       </div>
                     </CardContent>

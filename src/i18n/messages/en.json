@@ -40,13 +40,22 @@
     "page": "Page",
     "year": "Year",
     "region": "Region",
+    "status": "Status",
+    "allStatuses": "All statuses",
+    "selectStatus": "Select status",
+    "public": "Public",
+    "private": "Private",
+    "draft": "Draft",
+    "edit": "Edit",
     "allDates": "All dates",
     "allRegions": "All regions",
-    "allYears": "All Years",
+    "allYears": "All years",
     "resetFilters": "Reset filters",
     "cancel": "Cancel",
     "save": "Save",
-    "saving": "Saving..."
+    "saving": "Saving...",
+    "delete": "Delete",
+    "deleting": "Deleting..."
   },
   "navigation": {
     "home": "Home",
@@ -98,7 +107,16 @@
       "parentMetric": "Parent metric",
       "viewDetails": "View details",
       "viewData": "View data",
-      "edit": "Edit"
+      "edit": "Edit",
+      "delete": "Delete",
+      "deleteConfirmTitle": "Delete Metric",
+      "deleteConfirmDescription": "Are you sure you want to delete the metric \"{name}\"? This action cannot be undone.",
+      "deleteConfirmDataCount": "This will also delete {count} data points associated with this metric.",
+      "deleteSuccess": "Metric Deleted",
+      "deleteSuccessDescription": "The metric and its data have been successfully deleted.",
+      "deleteError": "Delete Failed",
+      "deleteErrorDescription": "An error occurred while deleting the metric. Please try again.",
+      "deselect": "Deselect metric"
     },
     "edit": {
       "title": "Edit Metric",
@@ -115,6 +133,14 @@
     "detail": {
       "backToExplorer": "Back to Explorer",
       "dataPoints": "Data Points",
+      "statusSummary": "Status summary",
+      "publishData": "Publish Data",
+      "publishedDataPoints": "{count, plural, =0 {No data points published} =1 {1 data point published} other {# data points published}}",
+      "editDataPoint": "Edit Data Point",
+      "editDataPointDescription": "Modify the values and status of this data point",
+      "updateSuccess": "Update Successful",
+      "updateError": "Update Failed",
+      "dataPointUpdated": "Data point has been updated successfully",
       "noData": "No data points found for this metric",
       "timestamp": "Timestamp",
       "value": "Value",
@@ -137,6 +163,7 @@
       "configureCustomize": "Configure metrics and customize your chart",
       "basicSettings": "Basic Settings",
       "chartOptions": "Chart Options",
+      "tableOptions": "Table Options",
       "chartType": "Chart Type",
       "selectChartType": "Select chart type",
       "chartTypes": {
@@ -157,11 +184,10 @@
       "colorScheme": "Color Scheme",
       "stacked": "Stacked",
       "dataAggregation": "Data Aggregation",
-      "selectAggregation": "Select aggregation",
-      "aggregation": {
-        "none": "None",
+      "selectAggregation": "Select aggregation method",
+      "aggregationTypes": {
         "sum": "Sum",
-        "avg": "Average",
+        "average": "Average",
         "min": "Minimum",
         "max": "Maximum"
       },
@@ -185,7 +211,6 @@
       "enterChartName": "Enter chart name",
       "enterChartDescription": "Enter chart description",
       "cancel": "Cancel",
-      "tableOptions": "Table Options",
       "showRowNumbers": "Show row numbers",
       "showFilters": "Show filters",
       "enableSorting": "Enable sorting",
