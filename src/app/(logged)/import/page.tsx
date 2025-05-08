@@ -2,7 +2,6 @@
 
 import { useState } from 'react';
 import { useTranslations } from 'next-intl';
-import { useRouter } from 'next/navigation';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import { useLocale } from 'next-intl';
@@ -31,7 +30,6 @@ import {
   FileText,
   Download,
   AlertCircle,
-  CheckCircle2,
   X,
   Eye,
   RefreshCw,
@@ -39,12 +37,6 @@ import {
   FileJson,
 } from 'lucide-react';
 import { Tables } from '@/types/database';
-
-// Type for upload progress event
-interface UploadProgressEvent {
-  loaded: number;
-  total: number;
-}
 
 // Define a type for the metadata JSONB column
 export type FileMetadata = {
@@ -75,7 +67,6 @@ type FileWithDetails = Tables<'files'> & {
 export default function ImportPage() {
   const t = useTranslations();
   const locale = useLocale();
-  const router = useRouter();
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [uploadProgress, setUploadProgress] = useState<number>(0);
   const [selectedFileData, setSelectedFileData] = useState<any[] | null>(null);
@@ -145,7 +136,7 @@ export default function ImportPage() {
       const filePath = `imports/${Date.now()}_${fileName}`;
 
       // Upload file to Supabase Storage
-      const { data: uploadData, error: uploadError } = await supabaseClient.storage
+      const { error: uploadError } = await supabaseClient.storage
         .from('metrics-import')
         .upload(filePath, file, {
           cacheControl: '3600',
@@ -602,7 +593,7 @@ export default function ImportPage() {
                       <TableBody>
                         {selectedFileData.map((row, rowIndex) => (
                           <TableRow key={rowIndex}>
-                            {Object.entries(row).map(([key, value], cellIndex) => (
+                            {Object.entries(row).map(([, value], cellIndex) => (
                               <TableCell key={`${rowIndex}-${cellIndex}`}>
                                 {value !== null && value !== undefined ? String(value) : ''}
                               </TableCell>
