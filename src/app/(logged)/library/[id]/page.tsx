@@ -7,7 +7,7 @@ import supabaseClient from '@/lib/supabase-client';
 import { Tables } from '@/types/database';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
-import { ChevronLeft, BarChart, Edit, Save, ChevronDown, Link } from 'lucide-react';
+import { ChevronLeft, BarChart, Edit, Save, ChevronDown, Link, Trash2 } from 'lucide-react';
 import RenderChart from '@/components/ui/charts/RenderChart';
 import { useState, useEffect } from 'react';
 import { Input } from '@/components/ui/input';
@@ -33,6 +33,16 @@ import { MetricTreeSelector } from '@/components/ui/metric-tree-selector';
 import { YearRangeSlider } from '@/components/ui/year-range-slider';
 import RenderTable from '@/components/ui/tables/RenderTable';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 
 // Simple switch component
 const Switch = ({
@@ -81,6 +91,8 @@ export default function ChartDetailPage() {
   // Edit state
   const [editOpen, setEditOpen] = useState(false);
   const [activeTab, setActiveTab] = useState('default');
+  // Delete confirmation state
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
 
   // State for chart configuration
   const [chartName, setChartName] = useState('');
@@ -220,6 +232,30 @@ export default function ChartDetailPage() {
     },
   });
 
+  // Delete chart mutation
+  const deleteChartMutation = useMutation({
+    mutationFn: async () => {
+      const { error } = await supabaseClient.from('charts').delete().eq('id', chartId);
+
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast({
+        title: 'Chart deleted successfully',
+        description: 'Your chart has been permanently deleted',
+      });
+      router.push('/library');
+    },
+    onError: error => {
+      toast({
+        title: 'Error deleting chart',
+        description: 'An error occurred while deleting your chart.',
+        variant: 'destructive',
+      });
+      console.error('Error deleting chart:', error);
+    },
+  });
+
   // Go back to library
   const handleBackClick = () => {
     router.push('/library');
@@ -274,6 +310,11 @@ export default function ChartDetailPage() {
     updateChartMutation.mutate();
   };
 
+  // Handle chart delete
+  const handleDeleteChart = () => {
+    deleteChartMutation.mutate();
+  };
+
   // Function to copy embed link to clipboard
   const copyEmbedLink = (type: 'chart' | 'table') => {
     const embedLink = `${window.location.origin}/embed/${type}/${chartId}`;
@@ -302,6 +343,14 @@ export default function ChartDetailPage() {
             </Button>
             {chartData && (
               <div className="flex space-x-2">
+                <Button
+                  variant="outline"
+                  onClick={() => setDeleteDialogOpen(true)}
+                  className="border-destructive text-destructive hover:bg-destructive/10"
+                >
+                  <Trash2 className="mr-2 h-4 w-4" />
+                  {t('library.detail.deleteChart')}
+                </Button>
                 <Popover open={editOpen} onOpenChange={setEditOpen}>
                   <PopoverTrigger asChild>
                     <Button variant="outline">
@@ -993,6 +1042,26 @@ export default function ChartDetailPage() {
           )}
         </CardContent>
       </Card>
+
+      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{t('library.detail.deleteChartConfirmTitle')}</AlertDialogTitle>
+            <AlertDialogDescription>
+              {t('library.detail.deleteChartConfirmDescription')}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>{t('common.cancel')}</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDeleteChart}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {t('common.delete')}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

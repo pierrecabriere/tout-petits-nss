@@ -307,7 +307,10 @@
       "backToLibrary": "Retour au Jeu de Données",
       "editChart": "Modifier le Jeu de Données",
       "chartNotFound": "Graphique non trouvé",
-      "copyEmbedLink": "Copier le lien d'intégration"
+      "copyEmbedLink": "Copier le lien d'intégration",
+      "deleteChart": "Supprimer le Jeu de Données",
+      "deleteChartConfirmTitle": "Supprimer le Jeu de Données",
+      "deleteChartConfirmDescription": "Êtes-vous sûr de vouloir supprimer ce jeu de données ? Cette action ne peut pas être annulée."
     }
   }
 }

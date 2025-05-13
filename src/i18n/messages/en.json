@@ -307,7 +307,10 @@
       "backToLibrary": "Back to Library",
       "editChart": "Edit Chart",
       "chartNotFound": "Chart not found",
-      "copyEmbedLink": "Copy Embed Link"
+      "copyEmbedLink": "Copy Embed Link",
+      "deleteChart": "Delete Chart",
+      "deleteChartConfirmTitle": "Delete Chart",
+      "deleteChartConfirmDescription": "Are you sure you want to delete this chart? This action cannot be undone."
     }
   }
 }
