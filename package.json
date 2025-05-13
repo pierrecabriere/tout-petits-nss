@@ -2,10 +2,10 @@
   "name": "tout-petits-nss",
   "version": "0.1.0",
   "private": true,
-  "packageManager": "pnpm@8.15.3",
+  "packageManager": "npm@11.1.0",
   "engines": {
     "node": "^20.0.0",
-    "pnpm": ">=8"
+    "npm": ">=11"
   },
   "scripts": {
     "dev": "next dev",
@@ -14,8 +14,8 @@
     "typecheck": "tsc --noEmit",
     "lint": "next lint",
     "format": "prettier ./src/ --wirte",
-    "gen:types": "pnpm supabase gen types typescript --db-url postgres://postgres:zeZ9IcUimNSQFnQ6ZIoHiTVNhV4TpkRB@supabase-lcskk4g88g8ckgg8skkw8owg.tractr.ca:5432/postgres > src/types/database.ts",
-    "db:push": "pnpm supabase db push --db-url postgres://postgres:zeZ9IcUimNSQFnQ6ZIoHiTVNhV4TpkRB@supabase-lcskk4g88g8ckgg8skkw8owg.tractr.ca:5432/postgres",
+    "gen:types": "supabase gen types typescript --db-url postgres://postgres:zeZ9IcUimNSQFnQ6ZIoHiTVNhV4TpkRB@supabase-lcskk4g88g8ckgg8skkw8owg.tractr.ca:5432/postgres > src/types/database.ts",
+    "db:push": "supabase db push --db-url postgres://postgres:zeZ9IcUimNSQFnQ6ZIoHiTVNhV4TpkRB@supabase-lcskk4g88g8ckgg8skkw8owg.tractr.ca:5432/postgres",
     "start:functions": "docker run -p 9999:9999 -v ./supabase/functions:/opt/functions -e HEALTH_CHECK_ATTEMPTS=10 -e ENV_FILE=./.env -e WATCH_FILES=true -e CHECK_CODE=false -e DEBUG=* --restart unless-stopped pierrecabriere/dynamic-deno-server:1.2.1",
     "test": "vitest",
     "cypress:open": "cypress open",
