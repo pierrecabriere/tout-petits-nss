@@ -35,6 +35,7 @@ A modern full-stack boilerplate featuring Next.js 15, Supabase, Shadcn/UI, and m
 ## Prerequisites
 
 - Node.js 20+
+- pnpm 8+
 - Docker (for local Supabase)
 - Git
 
@@ -56,13 +57,13 @@ cd my-project
 2. Install dependencies:
 
 ```bash
-npm install
+pnpm install
 ```
 
 3. Start local Supabase:
 
 ```bash
-npx supabase start
+pnpm supabase start
 ```
 
 This will start a local Supabase instance using Docker. Make note of the `anon key` and `API URL` that are displayed.
@@ -70,7 +71,7 @@ This will start a local Supabase instance using Docker. Make note of the `anon k
 4. Push database migrations:
 
 ```bash
-npx supabase db push --local
+pnpm supabase db push --local
 ```
 
 This will create the initial database structure, including the todos table.
@@ -97,7 +98,7 @@ Update the `.env` file with your Supabase credentials:
 7. Start the development server:
 
 ```bash
-npm run dev
+pnpm dev
 ```
 
 Visit `http://localhost:3000` to see your application.
@@ -142,16 +143,16 @@ This ensures that Deno only runs in the Supabase Edge Functions directory and do
 
 ## Available Scripts
 
-- `npm run dev` - Start development server
-- `npm run build` - Build for production
-- `npm run start` - Start production server
-- `npm run lint` - Run ESLint
-- `npm run test` - Run Vitest tests
-- `npm run cypress:open` - Open Cypress test runner
-- `npm run cypress:run` - Run Cypress tests headlessly
-- `npm run gen:types` - Generate TypeScript types from Supabase schema
-- `npm run storybook` - Start Storybook development server
-- `npm run build-storybook` - Build Storybook for production
+- `pnpm dev` - Start development server
+- `pnpm build` - Build for production
+- `pnpm start` - Start production server
+- `pnpm lint` - Run ESLint
+- `pnpm test` - Run Vitest tests
+- `pnpm cypress:open` - Open Cypress test runner
+- `pnpm cypress:run` - Run Cypress tests headlessly
+- `pnpm gen:types` - Generate TypeScript types from Supabase schema
+- `pnpm storybook` - Start Storybook development server
+- `pnpm build-storybook` - Build Storybook for production
 
 ## Authentication
 
@@ -182,7 +183,7 @@ Shadcn/UI offers a tool to customize your theme. You can find it at `https://ui.
 
 ### Database Schema
 
-- Generate updated types with `npm run gen:types`
+- Generate updated types with `pnpm gen:types`
 
 ## Testing
 
@@ -193,8 +194,8 @@ Shadcn/UI offers a tool to customize your theme. You can find it at `https://ui.
 To run the tests:
 
 ```bash
-npm run test
-npm run cypress:open
+pnpm test
+pnpm cypress:open
 ```
 
 ## Storybook
@@ -210,7 +211,7 @@ The project includes Storybook for component development and documentation:
 ### Running Storybook
 
 ```bash
-npm run storybook
+pnpm storybook
 ```
 
 Visit `http://localhost:6006` to see your component stories.
@@ -245,7 +246,7 @@ export const Primary: Story = {
 To build a static version of Storybook:
 
 ```bash
-npm run build-storybook
+pnpm build-storybook
 ```
 
 The output will be in the `storybook-static` directory.
