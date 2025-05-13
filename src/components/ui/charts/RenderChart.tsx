@@ -46,6 +46,7 @@ type BaseChartConfig = {
   aggregation: 'none' | 'sum' | 'avg' | 'min' | 'max';
   regionIds?: string[];
   hideDots?: boolean;
+  separateRegions?: boolean;
 };
 
 // Chart-specific configurations
@@ -86,8 +87,16 @@ const COLOR_SCHEMES: ColorScheme = {
 };
 
 export default function RenderChart(props: RenderChartProps) {
-  const { metricIds, chartType, dateRange, showLegend, colorScheme, aggregation, regionIds } =
-    props;
+  const {
+    metricIds,
+    chartType,
+    dateRange,
+    showLegend,
+    colorScheme,
+    aggregation,
+    regionIds,
+    separateRegions = false,
+  } = props;
   const showAxisLabels = props.showAxisLabels !== undefined ? props.showAxisLabels : true;
 
   // Extraire les propriétés spécifiques au type de graphique avec des valeurs par défaut
@@ -104,6 +113,8 @@ export default function RenderChart(props: RenderChartProps) {
   const [chartData, setChartData] = useState<ChartDataPoint[]>([]);
   const [metricNames, setMetricNames] = useState<{ [key: string]: string }>({});
   const [metricUnits, setMetricUnits] = useState<{ [key: string]: string | null }>({});
+  const [regionNames, setRegionNames] = useState<{ [key: string]: string }>({});
+  const [visibleSeries, setVisibleSeries] = useState<{ [key: string]: boolean }>({});
 
   // Fetch metrics info (names and units) for the chart
   const { data: metrics, isLoading: isLoadingMetrics } = useQuery({
@@ -120,6 +131,23 @@ export default function RenderChart(props: RenderChartProps) {
       return data as Tables<'metrics'>[];
     },
     enabled: metricIds.length > 0,
+  });
+
+  // Fetch regions info for the chart
+  const { data: regions, isLoading: isLoadingRegions } = useQuery({
+    queryKey: ['chart-regions', regionIds],
+    queryFn: async () => {
+      if (!regionIds || !regionIds.length) return [];
+
+      const { data, error } = await supabaseClient
+        .from('regions')
+        .select('id, name')
+        .in('id', regionIds);
+
+      if (error) throw error;
+      return data as Tables<'regions'>[];
+    },
+    enabled: separateRegions && regionIds !== undefined && regionIds.length > 0,
   });
 
   // Fetch data points for selected metrics and date range
@@ -174,94 +202,165 @@ export default function RenderChart(props: RenderChartProps) {
     setMetricNames(namesMap);
     setMetricUnits(unitsMap);
 
-    // Organize data points by date and metric
-    const dataByTimestampAndMetric: {
-      [timestamp: string]: {
-        [metricId: string]: {
-          sum: number;
-          count: number;
-        };
-      };
-    } = {};
-
-    dataPoints.forEach(({ metricId, data }) => {
-      data.forEach(point => {
-        const timestamp = point.date; // Use date as timestamp
-
-        if (!dataByTimestampAndMetric[timestamp]) {
-          dataByTimestampAndMetric[timestamp] = {};
-        }
-
-        if (!dataByTimestampAndMetric[timestamp][metricId]) {
-          dataByTimestampAndMetric[timestamp][metricId] = {
-            sum: 0,
-            count: 0,
-          };
-        }
-
-        dataByTimestampAndMetric[timestamp][metricId].sum += Number(point.value);
-        dataByTimestampAndMetric[timestamp][metricId].count += 1;
+    // Create a map of region IDs to names if separateRegions is enabled
+    if (separateRegions && regions) {
+      const regionsMap: { [key: string]: string } = {};
+      regions.forEach(region => {
+        regionsMap[region.id] = region.name;
       });
-    });
-
-    // Transform the data into an array for Recharts
-    const processedData: ChartDataPoint[] = Object.keys(dataByTimestampAndMetric).map(timestamp => {
-      const date = new Date(timestamp);
-      // Afficher uniquement l'année
-      const formattedDate = date.getUTCFullYear().toString();
-
-      const dataPoint: ChartDataPoint = {
-        timestamp,
-        formattedDate,
-      };
-
-      // Add values for each metric based on the aggregation method
-      metricIds.forEach(metricId => {
-        const metricData = dataByTimestampAndMetric[timestamp][metricId];
-        if (metricData) {
-          // Apply region aggregation based on selected method
-          if (aggregation === 'avg' && metricData.count > 0) {
-            dataPoint[metricId] = metricData.sum / metricData.count;
-          } else {
-            // Default to sum for other aggregation types or when none is specified
-            dataPoint[metricId] = metricData.sum;
-          }
-        } else {
-          dataPoint[metricId] = 0;
-        }
-      });
-
-      return dataPoint;
-    });
-
-    // Sort by timestamp
-    processedData.sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
-
-    // Apply time aggregation if needed for pie charts
-    if (chartType === 'pie' && processedData.length > 0) {
-      const aggregatedData: ChartDataPoint = {
-        timestamp: 'aggregated',
-        formattedDate: 'Total',
-      };
-
-      metricIds.forEach(metricId => {
-        const values = processedData.map(d => Number(d[metricId] || 0));
-
-        let aggregatedValue = 0;
-        // We're already applying region aggregation above, this is just for time aggregation in pie charts
-        aggregatedValue = values.reduce((sum, val) => sum + val, 0);
-
-        aggregatedData[metricId] = aggregatedValue;
-      });
-
-      setChartData([aggregatedData]);
-    } else {
-      setChartData(processedData);
+      setRegionNames(regionsMap);
     }
-  }, [dataPoints, metrics, metricIds, aggregation, chartType]);
+
+    if (separateRegions) {
+      // For separate regions mode, organize data by date, metric and region
+      const dataByTimestampMetricAndRegion: {
+        [timestamp: string]: {
+          [metricRegionKey: string]: number;
+        };
+      } = {};
+
+      dataPoints.forEach(({ metricId, data }) => {
+        data.forEach(point => {
+          const timestamp = point.date;
+          const regionId = point.region_id;
+
+          if (!dataByTimestampMetricAndRegion[timestamp]) {
+            dataByTimestampMetricAndRegion[timestamp] = {};
+          }
+
+          // Create a unique key for each metric-region combination
+          const metricRegionKey = `${metricId}:${regionId}`;
+          dataByTimestampMetricAndRegion[timestamp][metricRegionKey] = Number(point.value);
+
+          // Initialize all series as visible in the first render
+          if (visibleSeries[metricRegionKey] === undefined) {
+            setVisibleSeries(prev => ({ ...prev, [metricRegionKey]: true }));
+          }
+        });
+      });
+
+      const processedData: ChartDataPoint[] = Object.keys(dataByTimestampMetricAndRegion).map(
+        timestamp => {
+          const date = new Date(timestamp);
+          const formattedDate = date.getUTCFullYear().toString();
+
+          const dataPoint: ChartDataPoint = {
+            timestamp,
+            formattedDate,
+          };
+
+          // Add each metric-region combination as a separate series
+          Object.entries(dataByTimestampMetricAndRegion[timestamp]).forEach(
+            ([metricRegionKey, value]) => {
+              dataPoint[metricRegionKey] = value;
+            }
+          );
+
+          return dataPoint;
+        }
+      );
+
+      // Sort by timestamp
+      processedData.sort(
+        (a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
+      );
+
+      setChartData(processedData);
+    } else {
+      // Original aggregated data processing for non-separate regions mode
+      // Organize data points by date and metric
+      const dataByTimestampAndMetric: {
+        [timestamp: string]: {
+          [metricId: string]: {
+            sum: number;
+            count: number;
+          };
+        };
+      } = {};
+
+      dataPoints.forEach(({ metricId, data }) => {
+        data.forEach(point => {
+          const timestamp = point.date; // Use date as timestamp
+
+          if (!dataByTimestampAndMetric[timestamp]) {
+            dataByTimestampAndMetric[timestamp] = {};
+          }
+
+          if (!dataByTimestampAndMetric[timestamp][metricId]) {
+            dataByTimestampAndMetric[timestamp][metricId] = {
+              sum: 0,
+              count: 0,
+            };
+          }
+
+          dataByTimestampAndMetric[timestamp][metricId].sum += Number(point.value);
+          dataByTimestampAndMetric[timestamp][metricId].count += 1;
+        });
+      });
+
+      // Transform the data into an array for Recharts
+      const processedData: ChartDataPoint[] = Object.keys(dataByTimestampAndMetric).map(
+        timestamp => {
+          const date = new Date(timestamp);
+          // Afficher uniquement l'année
+          const formattedDate = date.getUTCFullYear().toString();
+
+          const dataPoint: ChartDataPoint = {
+            timestamp,
+            formattedDate,
+          };
+
+          // Add values for each metric based on the aggregation method
+          metricIds.forEach(metricId => {
+            const metricData = dataByTimestampAndMetric[timestamp][metricId];
+            if (metricData) {
+              // Apply region aggregation based on selected method
+              if (aggregation === 'avg' && metricData.count > 0) {
+                dataPoint[metricId] = metricData.sum / metricData.count;
+              } else {
+                // Default to sum for other aggregation types or when none is specified
+                dataPoint[metricId] = metricData.sum;
+              }
+            } else {
+              dataPoint[metricId] = 0;
+            }
+          });
+
+          return dataPoint;
+        }
+      );
+
+      // Sort by timestamp
+      processedData.sort(
+        (a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
+      );
+
+      // Apply time aggregation if needed for pie charts
+      if (chartType === 'pie' && processedData.length > 0) {
+        const aggregatedData: ChartDataPoint = {
+          timestamp: 'aggregated',
+          formattedDate: 'Total',
+        };
+
+        metricIds.forEach(metricId => {
+          const values = processedData.map(d => Number(d[metricId] || 0));
+
+          let aggregatedValue = 0;
+          // We're already applying region aggregation above, this is just for time aggregation in pie charts
+          aggregatedValue = values.reduce((sum, val) => sum + val, 0);
+
+          aggregatedData[metricId] = aggregatedValue;
+        });
+
+        setChartData([aggregatedData]);
+      } else {
+        setChartData(processedData);
+      }
+    }
+  }, [dataPoints, metrics, metricIds, aggregation, chartType, regions, separateRegions]);
 
   // If loading or no data, show placeholder
-  if (isLoadingMetrics || isLoadingData) {
+  if (isLoadingMetrics || isLoadingData || (separateRegions && isLoadingRegions)) {
     return (
       <div className="flex h-full w-full items-center justify-center">
         <Skeleton className="h-full w-full" />
@@ -281,6 +380,55 @@ export default function RenderChart(props: RenderChartProps) {
   const colors = COLOR_SCHEMES[colorScheme];
   console.log('Using color scheme:', colorScheme, 'with colors:', colors);
 
+  // Custom interactive legend component
+  const CustomizedLegend = ({ payload }: any) => {
+    if (!payload || payload.length === 0) return null;
+
+    return (
+      <ul className="mt-2 flex flex-wrap justify-center gap-2 px-4">
+        {payload.map((entry: any, index: number) => {
+          const { value, color } = entry;
+          const isActive = separateRegions
+            ? visibleSeries[value] !== false
+            : visibleSeries[value] !== false;
+
+          return (
+            <li
+              key={`item-${index}`}
+              className={`flex cursor-pointer items-center rounded border px-2 py-1 ${isActive ? 'border-gray-300 bg-background' : 'border-gray-200 bg-gray-50 dark:bg-gray-800'}`}
+              onClick={() => {
+                setVisibleSeries(prev => ({
+                  ...prev,
+                  [value]: !prev[value],
+                }));
+              }}
+            >
+              <span
+                className="mr-2 inline-block h-3 w-3 rounded-sm"
+                style={{
+                  backgroundColor: isActive ? color : 'transparent',
+                  borderColor: color,
+                  borderWidth: 1,
+                  borderStyle: 'solid',
+                }}
+              />
+              <span className={`text-xs ${isActive ? 'font-medium' : 'font-normal text-gray-500'}`}>
+                {separateRegions && typeof value === 'string' && value.includes(':')
+                  ? (() => {
+                      const [metricId, regionId] = value.split(':');
+                      const metricName = metricNames[metricId] || metricId;
+                      const regionName = regionNames[regionId] || regionId;
+                      return `${metricName} (${regionName})`;
+                    })()
+                  : metricNames[value] || value}
+              </span>
+            </li>
+          );
+        })}
+      </ul>
+    );
+  };
+
   // Render different chart types
   switch (chartType) {
     case 'line': {
@@ -292,24 +440,58 @@ export default function RenderChart(props: RenderChartProps) {
             <YAxis tick={{ fontSize: 12 }} hide={!showAxisLabels} />
             <Tooltip
               formatter={(value, name) => {
-                const metricId = name as string;
-                const unit = metricUnits[metricId] || '';
-                return [`${value} ${unit}`, metricNames[metricId] || name];
+                // Handle both normal metric IDs and metric:region format
+                if (separateRegions && typeof name === 'string' && name.includes(':')) {
+                  const [metricId, regionId] = (name as string).split(':');
+                  const unit = metricUnits[metricId] || '';
+                  const metricName = metricNames[metricId] || metricId;
+                  const regionName = regionNames[regionId] || regionId;
+                  return [`${value} ${unit}`, `${metricName} (${regionName})`];
+                } else {
+                  const metricId = name as string;
+                  const unit = metricUnits[metricId] || '';
+                  return [`${value} ${unit}`, metricNames[metricId] || name];
+                }
               }}
             />
-            {showLegend && <Legend formatter={value => metricNames[value] || value} />}
-            {metricIds.map((metricId, index) => (
-              <Line
-                key={metricId}
-                type={curveType}
-                dataKey={metricId}
-                name={metricId}
-                stroke={colors[index % colors.length]}
-                activeDot={hideDots ? false : { r: 8 }}
-                dot={hideDots ? false : true}
-                strokeWidth={2}
-              />
-            ))}
+            {showLegend && <Legend content={<CustomizedLegend />} />}
+            {separateRegions
+              ? // Generate lines for each metric-region combination
+                Object.keys(chartData[0] || {})
+                  .filter(key => key !== 'timestamp' && key !== 'formattedDate')
+                  .map((metricRegionKey, index) => {
+                    const isVisible = visibleSeries[metricRegionKey] !== false;
+                    return (
+                      <Line
+                        key={metricRegionKey}
+                        type={curveType}
+                        dataKey={metricRegionKey}
+                        name={metricRegionKey}
+                        stroke={colors[index % colors.length]}
+                        activeDot={hideDots || !isVisible ? false : { r: 8 }}
+                        dot={hideDots || !isVisible ? false : true}
+                        strokeWidth={isVisible ? 2 : 0}
+                        hide={!isVisible}
+                      />
+                    );
+                  })
+              : // Standard lines for each metric with aggregated region data
+                metricIds.map((metricId, index) => {
+                  const isVisible = visibleSeries[metricId] !== false;
+                  return (
+                    <Line
+                      key={metricId}
+                      type={curveType}
+                      dataKey={metricId}
+                      name={metricId}
+                      stroke={colors[index % colors.length]}
+                      activeDot={hideDots || !isVisible ? false : { r: 8 }}
+                      dot={hideDots || !isVisible ? false : true}
+                      strokeWidth={isVisible ? 2 : 0}
+                      hide={!isVisible}
+                    />
+                  );
+                })}
           </LineChart>
         </ResponsiveContainer>
       );
@@ -324,21 +506,54 @@ export default function RenderChart(props: RenderChartProps) {
             <YAxis tick={{ fontSize: 12 }} hide={!showAxisLabels} />
             <Tooltip
               formatter={(value, name) => {
-                const metricId = name as string;
-                const unit = metricUnits[metricId] || '';
-                return [`${value} ${unit}`, metricNames[metricId] || name];
+                // Handle both normal metric IDs and metric:region format
+                if (separateRegions && typeof name === 'string' && name.includes(':')) {
+                  const [metricId, regionId] = (name as string).split(':');
+                  const unit = metricUnits[metricId] || '';
+                  const metricName = metricNames[metricId] || metricId;
+                  const regionName = regionNames[regionId] || regionId;
+                  return [`${value} ${unit}`, `${metricName} (${regionName})`];
+                } else {
+                  const metricId = name as string;
+                  const unit = metricUnits[metricId] || '';
+                  return [`${value} ${unit}`, metricNames[metricId] || name];
+                }
               }}
             />
-            {showLegend && <Legend formatter={value => metricNames[value] || value} />}
-            {metricIds.map((metricId, index) => (
-              <Bar
-                key={metricId}
-                dataKey={metricId}
-                name={metricId}
-                fill={colors[index % colors.length]}
-                stackId={stacked ? 'stack' : undefined}
-              />
-            ))}
+            {showLegend && <Legend content={<CustomizedLegend />} />}
+            {separateRegions
+              ? // Generate bars for each metric-region combination
+                Object.keys(chartData[0] || {})
+                  .filter(key => key !== 'timestamp' && key !== 'formattedDate')
+                  .map((metricRegionKey, index) => {
+                    const isVisible = visibleSeries[metricRegionKey] !== false;
+                    return (
+                      <Bar
+                        key={metricRegionKey}
+                        dataKey={metricRegionKey}
+                        name={metricRegionKey}
+                        fill={colors[index % colors.length]}
+                        stackId={stacked ? 'stack' : undefined}
+                        fillOpacity={isVisible ? 1 : 0}
+                        hide={!isVisible}
+                      />
+                    );
+                  })
+              : // Standard bars for each metric with aggregated region data
+                metricIds.map((metricId, index) => {
+                  const isVisible = visibleSeries[metricId] !== false;
+                  return (
+                    <Bar
+                      key={metricId}
+                      dataKey={metricId}
+                      name={metricId}
+                      fill={colors[index % colors.length]}
+                      stackId={stacked ? 'stack' : undefined}
+                      fillOpacity={isVisible ? 1 : 0}
+                      hide={!isVisible}
+                    />
+                  );
+                })}
           </BarChart>
         </ResponsiveContainer>
       );
@@ -353,32 +568,71 @@ export default function RenderChart(props: RenderChartProps) {
             <YAxis tick={{ fontSize: 12 }} hide={!showAxisLabels} />
             <Tooltip
               formatter={(value, name) => {
-                const metricId = name as string;
-                const unit = metricUnits[metricId] || '';
-                return [`${value} ${unit}`, metricNames[metricId] || name];
+                // Handle both normal metric IDs and metric:region format
+                if (separateRegions && typeof name === 'string' && name.includes(':')) {
+                  const [metricId, regionId] = (name as string).split(':');
+                  const unit = metricUnits[metricId] || '';
+                  const metricName = metricNames[metricId] || metricId;
+                  const regionName = regionNames[regionId] || regionId;
+                  return [`${value} ${unit}`, `${metricName} (${regionName})`];
+                } else {
+                  const metricId = name as string;
+                  const unit = metricUnits[metricId] || '';
+                  return [`${value} ${unit}`, metricNames[metricId] || name];
+                }
               }}
             />
-            {showLegend && <Legend formatter={value => metricNames[value] || value} />}
-            {metricIds.map((metricId, index) => (
-              <Area
-                key={metricId}
-                type="monotone"
-                dataKey={metricId}
-                name={metricId}
-                fill={colors[index % colors.length]}
-                stroke={colors[index % colors.length]}
-                fillOpacity={0.6}
-                stackId={stacked ? 'stack' : undefined}
-              />
-            ))}
+            {showLegend && <Legend content={<CustomizedLegend />} />}
+            {separateRegions
+              ? // Generate areas for each metric-region combination
+                Object.keys(chartData[0] || {})
+                  .filter(key => key !== 'timestamp' && key !== 'formattedDate')
+                  .map((metricRegionKey, index) => {
+                    const isVisible = visibleSeries[metricRegionKey] !== false;
+                    return (
+                      <Area
+                        key={metricRegionKey}
+                        type="monotone"
+                        dataKey={metricRegionKey}
+                        name={metricRegionKey}
+                        fill={colors[index % colors.length]}
+                        stroke={colors[index % colors.length]}
+                        fillOpacity={isVisible ? 0.6 : 0}
+                        strokeOpacity={isVisible ? 1 : 0}
+                        stackId={stacked ? 'stack' : undefined}
+                        hide={!isVisible}
+                      />
+                    );
+                  })
+              : // Standard areas for each metric with aggregated region data
+                metricIds.map((metricId, index) => {
+                  const isVisible = visibleSeries[metricId] !== false;
+                  return (
+                    <Area
+                      key={metricId}
+                      type="monotone"
+                      dataKey={metricId}
+                      name={metricId}
+                      fill={colors[index % colors.length]}
+                      stroke={colors[index % colors.length]}
+                      fillOpacity={isVisible ? 0.6 : 0}
+                      strokeOpacity={isVisible ? 1 : 0}
+                      stackId={stacked ? 'stack' : undefined}
+                      hide={!isVisible}
+                    />
+                  );
+                })}
           </AreaChart>
         </ResponsiveContainer>
       );
     }
 
     case 'pie': {
+      // Filter only visible metrics for pie chart
+      const visibleMetricIds = metricIds.filter(metricId => visibleSeries[metricId] !== false);
+
       // For pie charts, we need to restructure the data
-      const pieData = metricIds.map((metricId, index) => {
+      const pieData = visibleMetricIds.map((metricId, index) => {
         const value = Number(chartData[0][metricId] || 0);
         return {
           id: metricId,
@@ -408,7 +662,7 @@ export default function RenderChart(props: RenderChartProps) {
                 <Cell key={`cell-${index}`} fill={colors[index % colors.length]} />
               ))}
             </Pie>
-            {showLegend && <Legend />}
+            {showLegend && <Legend content={<CustomizedLegend />} />}
             <Tooltip
               formatter={(value, name) => {
                 const metricId = pieData.find(d => d.name === name)?.id || '';

@@ -181,6 +181,7 @@
       "noRegions": "Aucune région",
       "loading": "Chargement...",
       "showLegend": "Afficher la Légende",
+      "separateRegions": "Afficher une courbe par région",
       "colorScheme": "Palette de Couleurs",
       "stacked": "Empilé",
       "dataAggregation": "Agrégation des Données",

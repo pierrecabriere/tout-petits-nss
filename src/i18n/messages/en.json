@@ -181,6 +181,7 @@
       "noRegions": "No regions",
       "loading": "Loading...",
       "showLegend": "Show Legend",
+      "separateRegions": "Show separate line per region",
       "colorScheme": "Color Scheme",
       "stacked": "Stacked",
       "dataAggregation": "Data Aggregation",

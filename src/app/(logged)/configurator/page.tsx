@@ -95,6 +95,7 @@ export default function ConfiguratorPage() {
   const [innerRadius, setInnerRadius] = useState<number>(0);
   const [outerRadius, setOuterRadius] = useState<number>(80);
   const [hideDots, setHideDots] = useState(false);
+  const [separateRegions, setSeparateRegions] = useState(false);
 
   // Save dialog state
   const [saveDialogOpen, setSaveDialogOpen] = useState(false);
@@ -177,6 +178,7 @@ export default function ConfiguratorPage() {
             innerRadius: chartType === 'pie' ? innerRadius : undefined,
             outerRadius: chartType === 'pie' ? outerRadius : undefined,
             hideDots: chartType === 'line' ? hideDots : undefined,
+            separateRegions,
             tableView:
               activeTab === 'table'
                 ? {
@@ -413,6 +415,18 @@ export default function ConfiguratorPage() {
                   <Switch id="show-legend" checked={showLegend} onCheckedChange={setShowLegend} />
                 </div>
 
+                {/* Separate regions option */}
+                <div className="flex items-center justify-between">
+                  <Label htmlFor="separate-regions">
+                    {t('metrics.configurator.separateRegions')}
+                  </Label>
+                  <Switch
+                    id="separate-regions"
+                    checked={separateRegions}
+                    onCheckedChange={setSeparateRegions}
+                  />
+                </div>
+
                 {/* Data Aggregation selection */}
                 <div className="space-y-2">
                   <Label htmlFor="data-aggregation">
@@ -549,6 +563,7 @@ export default function ConfiguratorPage() {
                         hideDots={chartType === 'line' ? hideDots : undefined}
                         aggregation={dataAggregation}
                         stacked={false}
+                        separateRegions={separateRegions}
                       />
                     )}
                   </div>
