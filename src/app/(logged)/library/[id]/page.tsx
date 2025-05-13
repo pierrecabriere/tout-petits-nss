@@ -850,7 +850,13 @@ export default function ChartDetailPage() {
                                 : undefined,
                             }
                       }
-                      showLegend={editOpen ? showLegend : chartConfig?.showLegend || true}
+                      showLegend={
+                        editOpen
+                          ? showLegend
+                          : chartConfig?.showLegend !== undefined
+                            ? chartConfig.showLegend
+                            : true
+                      }
                       colorScheme={editOpen ? colorScheme : chartConfig?.colorScheme || 'default'}
                       curveType={editOpen ? curveType : chartConfig?.curveType}
                       innerRadius={editOpen ? innerRadius : chartConfig?.innerRadius}

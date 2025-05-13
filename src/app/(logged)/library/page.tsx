@@ -173,7 +173,7 @@ export default function LibraryPage() {
                             ? new Date(chart.config.dateRange.to)
                             : new Date(),
                         }}
-                        showLegend={false}
+                        showLegend={chart.config?.showLegend || false}
                         showAxisLabels={false}
                         colorScheme={chart.config?.colorScheme || 'default'}
                         aggregation={chart.config?.aggregation || 'none'}

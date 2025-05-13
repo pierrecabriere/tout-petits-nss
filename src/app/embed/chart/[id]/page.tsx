@@ -58,7 +58,7 @@ export default function EmbedChartPage() {
               from: chartConfig?.dateRange?.from ? new Date(chartConfig.dateRange.from) : undefined,
               to: chartConfig?.dateRange?.to ? new Date(chartConfig.dateRange.to) : undefined,
             }}
-            showLegend={chartConfig?.showLegend || true}
+            showLegend={chartConfig?.showLegend !== undefined ? chartConfig.showLegend : true}
             colorScheme={chartConfig?.colorScheme || 'default'}
             curveType={chartConfig?.curveType}
             innerRadius={chartConfig?.innerRadius}
