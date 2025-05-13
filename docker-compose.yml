@@ -7,6 +7,7 @@ services:
       - ./supabase/functions:/opt/functions
     environment:
       - HEALTH_CHECK_ATTEMPTS=10
+      - ENV_FILE=./.env
       - WATCH_FILES=true
       - CHECK_CODE=false
       - DEBUG=*
