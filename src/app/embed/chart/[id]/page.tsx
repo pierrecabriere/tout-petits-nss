@@ -67,6 +67,7 @@ export default function EmbedChartPage() {
             regionIds={chartData.regions}
             hideDots={chartConfig?.hideDots || false}
             aggregation="none"
+            separateRegions={chartConfig?.separateRegions || false}
           />
         </div>
       ) : (

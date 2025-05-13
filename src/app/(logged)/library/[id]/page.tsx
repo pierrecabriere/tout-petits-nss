@@ -109,6 +109,7 @@ export default function ChartDetailPage() {
   const [outerRadius, setOuterRadius] = useState<number>(80);
   const [stacked, setStacked] = useState<boolean>(false);
   const [hideDots, setHideDots] = useState(false);
+  const [separateRegions, setSeparateRegions] = useState(false);
 
   // State for table options
   const [tableView, setTableView] = useState({
@@ -199,6 +200,7 @@ export default function ChartDetailPage() {
             outerRadius: chartType === 'pie' ? outerRadius : undefined,
             stacked: chartType === 'bar' || chartType === 'area' ? stacked : undefined,
             hideDots: chartType === 'line' ? hideDots : undefined,
+            separateRegions,
             tableView: {
               showRowNumbers: tableView.showRowNumbers,
               showFilters: tableView.showFilters,
@@ -287,6 +289,7 @@ export default function ChartDetailPage() {
       setOuterRadius(chartConfig?.outerRadius ?? 80);
       setStacked(chartConfig?.stacked ?? false);
       setHideDots(chartConfig?.hideDots ?? false);
+      setSeparateRegions(chartConfig?.separateRegions ?? false);
       setSelectedMetrics(chartData.metrics || []);
       setSelectedRegions(chartData.regions || []);
 
@@ -511,6 +514,18 @@ export default function ChartDetailPage() {
                                 />
                               </div>
                             )}
+
+                            {/* Separate regions option */}
+                            <div className="flex items-center justify-between">
+                              <Label htmlFor="separate-regions">
+                                {t('metrics.configurator.separateRegions') || 'Separate Regions'}
+                              </Label>
+                              <Switch
+                                id="separate-regions"
+                                checked={separateRegions}
+                                onCheckedChange={setSeparateRegions}
+                              />
+                            </div>
 
                             {/* Common options */}
                             <div className="flex items-center justify-between">
@@ -844,6 +859,9 @@ export default function ChartDetailPage() {
                       regionIds={editOpen ? selectedRegions : chartData.regions}
                       hideDots={editOpen ? hideDots : chartConfig?.hideDots || false}
                       aggregation="none"
+                      separateRegions={
+                        editOpen ? separateRegions : chartConfig?.separateRegions || false
+                      }
                     />
                   ) : (
                     <div className="flex h-full items-center justify-center">

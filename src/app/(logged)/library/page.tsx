@@ -190,6 +190,8 @@ export default function LibraryPage() {
                         {...(chart.config?.outerRadius !== undefined && {
                           outerRadius: chart.config.outerRadius,
                         })}
+                        regionIds={chart.config?.regions}
+                        separateRegions={chart.config?.separateRegions || false}
                       />
                     )}
                     {(!chart.metrics || chart.metrics.length === 0) && (
